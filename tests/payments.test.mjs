@@ -48,7 +48,7 @@ test('online-wallet exclusion applies to the online comparison, not phone tappin
 test('excluded and invalid payments cannot create a card recommendation',()=>{
  for(const category of ['bills','topup','paynow']){
   for(const {result} of comparePayments({...merchant,category},'',wallet,now)){
-   assert.equal(result.status,'excluded');assert.equal(result.best,undefined);
+   assert.equal(result.status,'excluded');assert.equal(result.best,null);
   }
  }
  for(const {result} of comparePayments(merchant,'-1',wallet,now))assert.equal(result.status,'amount');

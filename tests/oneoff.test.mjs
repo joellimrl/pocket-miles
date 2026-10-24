@@ -103,7 +103,7 @@ test('one-off purchase checks are separate from saved places',async t=>{
   assert.equal($('merchant-save').disabled,false);
   assert.match($('remember-help').textContent,/500.*without saving/);
   $('category').value='pharmacy';event('merchant-form','submit');
-  assert.ok($('result').querySelector('.recommendation'));
+  assert.ok($('result').querySelector('.ranked-card'));
   document.querySelector('[data-save-current]').click();
   assert.equal($('remember-merchant').checked,false,'explicit save cannot bypass the full saved list');
   event('merchant-form','submit');
@@ -122,7 +122,7 @@ test('one-off purchase checks are separate from saved places',async t=>{
   assert.match($('remember-help').textContent,/Reconnect/);
   remember(false);$('category').value='pharmacy';event('merchant-form','submit');
   assert.equal($('merchant-dialog').open,false);
-  assert.ok($('result').querySelector('.recommendation'));
+  assert.ok($('result').querySelector('.ranked-card'));
   assert.equal(calls,beforeCalls);assert.equal(cache(),before);
   input('merchant-search','Unfamiliar Different Shop');
   assert.ok(document.querySelector('[data-add]'),'another unknown merchant needs its own details');
