@@ -37,9 +37,9 @@ Paired browser connections have no automatic expiry. The 15-minute setup key can
 
 - Pay, Places and Wallet screens; optional amount for more precise estimates.
 - A Charged in selector on Pay switches this purchase between SGD and foreign currency without changing the saved place. Save through the merchant editor to retain a currency change.
-- Recommendations for tap/phone, online/app and inserted-card payments shown together for stores and restaurants. Online platforms such as Shopee, Lazada and GrabFood show online only; SimplyGo shows tap only, and taxi terminals show tap and insert. Amount and wallet changes recalculate every displayed method.
+- A compact comparison table puts cards in rows and tap/phone, online/app and inserted-card payments in adjacent columns, including on narrow phones. Each column highlights its highest-mile pick. Online platforms such as Shopee, Lazada and GrabFood show online only; SimplyGo shows tap only, and taxi terminals show tap and insert. Amount and wallet changes recalculate every displayed method.
 - HSBC Revolution, Citi Rewards, KrisFlyer UOB and Trust Freedom, with optional Amaze routing.
-- Every card in the saved wallet is visible for each checkout, including Amaze + Citi when enabled. Lists sort by miles per dollar without an amount, or estimated total miles after rounding and allowances with an amount. Excluded cards and disabled miles mode stay visible at zero; unmodelled routes are marked not estimated and appear last. Fees remain visible separately. SGD Amaze costs are shown as 1% with a S$0.50 minimum until an amount is supplied.
+- Every saved wallet card has one row, including Amaze + Citi when enabled. Rows sort by the highest available miles per dollar across methods, or highest estimated total miles after rounding and allowances when an amount is entered. Each method retains its own independent top pick. Excluded cards and disabled miles mode stay visible at zero; unmodelled routes show a dash. Compact fee labels and cap-status badges stay in the grid. Full calculation explanations and assumptions live under Fees & details. The search screen removes the hero and repeated instructional paragraphs; recent places and starter categories hide while searching.
 - One-off purchase checks with an optional Save to my places checkbox. New purchase checks default to not saving; explicit Add/Save actions and editing a saved place default to saving.
 - Saved merchant category, branch/route, payment method, currency, notes and confirmation status.
 - Separate branch and online entries; ambiguous matches require selection.
@@ -59,7 +59,7 @@ This is a single-owner app, with up to 500 explicitly saved merchant entries. Th
 - .github/workflows/checks.yml: tests and builds pull requests.
 - .github/workflows/pages.yml: publishes only when manually run on main.
 
-Only dist/ is uploaded to Pages. Tooling, tests, node_modules, local data and documentation are excluded. Relative asset URLs and the manifest scope support the /pocket-miles/ project path. Use Update app in the footer, or open https://joellimrl.github.io/pocket-miles/update.html to load a new release. This uncached entry updates and activates the app's service worker, then returns to Pay; it never clears device credentials, IndexedDB or the notebook. Shell downloads bypass the browser HTTP cache. App v3.3.3 is shown in the footer. Existing tabs are not forcibly reloaded; reopen them after saving any forms.
+Only dist/ is uploaded to Pages. Tooling, tests, node_modules, local data and documentation are excluded. Relative asset URLs and the manifest scope support the /pocket-miles/ project path. Use Update app in the footer, or open https://joellimrl.github.io/pocket-miles/update.html to load a new release. This uncached entry updates and activates the app's service worker, then returns to Pay; it never clears device credentials, IndexedDB or the notebook. Shell downloads bypass the browser HTTP cache. App v3.4.0 is shown in the footer. Existing tabs are not forcibly reloaded; reopen them after saving any forms.
 
 ## Maintaining card rules
 

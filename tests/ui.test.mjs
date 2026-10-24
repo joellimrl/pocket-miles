@@ -41,14 +41,15 @@ test('connect, compare checkout methods, save merchant, recall name, edit route 
  $('uob-qualified').checked=true;event('wallet-form','input');event('wallet-form','submit');
  await until(()=>server.data.settings.cards.length===4&&$('pay').hidden===false);
  const methods=()=>[...document.querySelectorAll('[data-payment-method]')].map(el=>el.dataset.paymentMethod);
- const card=method=>document.querySelector(`[data-payment-method="${method}"] .ranked-card h4`)?.textContent;
+ const cell=(method,id)=>document.querySelector(`tr[data-card-id="${id}"] [data-method="${method}"]`);
+ const card=method=>document.querySelector(`.best-cell[data-method="${method}"]`)?.closest('tr').querySelector('.matrix-card-name').textContent;
  const beforeComparisonCalls=calls,beforeComparisonData=JSON.stringify(server);
  input('merchant-search',"McDonald's");
  assert.deepEqual(methods(),['tap','online','insert']);
  assert.equal(card('tap'),'KrisFlyer UOB');assert.equal(card('online'),'Citi Rewards');assert.equal(card('insert'),'KrisFlyer UOB');
  input('pay-amount','12.50');
- for(const method of methods())assert.equal(document.querySelectorAll(`[data-payment-method="${method}"] .ranked-card`).length,4);
- assert.equal(document.querySelector('[data-payment-method="online"] .card-miles').firstChild.textContent,'≈ 48');
+ for(const method of methods())assert.equal(document.querySelectorAll(`td[data-method="${method}"]`).length,4);
+ assert.equal(cell('online','citi').querySelector('.matrix-miles').textContent,'48');
  assert.equal(calls,beforeComparisonCalls);assert.equal(JSON.stringify(server),beforeComparisonData,'comparisons never save or change a merchant');
  input('merchant-search','Shopee');assert.deepEqual(methods(),['online']);
  input('merchant-search','GrabFood');assert.deepEqual(methods(),['online']);
@@ -59,11 +60,15 @@ test('connect, compare checkout methods, save merchant, recall name, edit route 
  input('pay-amount','');
  input('merchant-search','Guardian');assert.match($('result').textContent,/HSBC Revolution/);
  assert.deepEqual(methods(),['tap','online','insert']);
+ assert.equal(cell('tap','hsbc').querySelector('.matrix-miles').textContent,'3.33');
+ assert.equal(cell('insert','hsbc').querySelector('.matrix-miles').textContent,'0.33');
+ assert.equal(cell('tap','citi').querySelector('.matrix-miles').textContent,'0.4');
+ assert.equal(cell('online','citi').querySelector('.matrix-miles').textContent,'4');
  const callsBefore=calls;input('merchant-search','Guardian');assert.equal(calls,callsBefore,'typing needs no API request');
  document.querySelector('[data-save-current]').click();
  assert.equal($('category').value,'pharmacy');input('variant','Tampines');event('merchant-form','submit');
  await until(()=>server.data.merchants.length===1&&!$('merchant-dialog').open);
- assert.equal($('pay-amount').value,'');assert.match($('result').textContent,/All wallet cards · most miles first/);
+ assert.equal($('pay-amount').value,'');assert.match($('result').textContent,/Miles \/ S\$/);
  $('clear-search').click();input('merchant-search','Guardian');
  assert.match($('result').textContent,/Guardian · Tampines/);
  document.querySelector('[data-edit-current]').click();
@@ -75,7 +80,7 @@ test('connect, compare checkout methods, save merchant, recall name, edit route 
  assert.equal($('matches').hidden,false);assert.equal($('result').innerHTML,'');
  event('pay-amount','input');assert.equal($('result').innerHTML,'','amount rerender must not bypass ambiguous routes');
  document.querySelector('#matches [data-select]').click();
- assert.ok($('result').querySelector('.ranked-card'));
+ assert.ok($('result').querySelector('.card-matrix'));
  const row=server.data.merchants.find(m=>$('merchant-search').value.includes(m.variant));
  row.method='insert';server.revision++;
  $('refresh').click();await until(()=>!$('refresh').disabled);
@@ -85,50 +90,60 @@ test('connect, compare checkout methods, save merchant, recall name, edit route 
  server.data.settings.amaze=true;server.revision++;
  $('refresh').click();await until(()=>!$('refresh').disabled);
  assert.equal($('pay-currency').value,'sgd');
- for(const option of document.querySelectorAll('[data-card-id="amaze"]')){
-  assert.equal(option.closest('details'),null);assert.match(option.textContent,/4miles \/ S\$/);
-  assert.match(option.textContent,/minimum S\$0.50/);
- }
- assert.equal(document.querySelectorAll('[data-card-id="amaze"]').length,3);
+ const table=document.querySelector('.card-matrix');
+ assert.equal(table.querySelectorAll('tbody tr').length,5);
+ assert.equal(table.querySelectorAll('thead [scope=col]').length,4);
+ assert.equal(table.closest('details'),null);
+ assert.equal(document.querySelector('.comparison-details').open,false);
+ assert.equal($('recents').hidden,true);assert.equal($('quick-categories').hidden,true);
+ assert.equal(document.querySelector('#pay .hero'),null);
  for(const method of methods()){
-  const rows=[...document.querySelectorAll(`[data-payment-method="${method}"] .ranked-card`)];
-  assert.equal(rows.length,5);
-  for(const row of rows){assert.equal(row.closest('details'),null);assert.equal(row.hidden,false);assert.ok(row.querySelector('.card-miles'));assert.ok(row.querySelector('.card-fee'));}
+  assert.equal(cell(method,'amaze').querySelector('.matrix-miles').textContent,'4');
+  assert.equal(document.querySelectorAll(`td[data-method="${method}"]`).length,5);
  }
+ assert.match(table.querySelector('[data-card-id=amaze]').textContent,/1% · min \$0.50/);
+ assert.equal(card('tap'),'Amaze + Citi');assert.equal(card('online'),'Citi Rewards');
  const currencyCalls=calls,currencyCache=localStorage.getItem('pocket-miles-personal-v3');
  $('pay-currency').value='foreign';event('pay-currency','change');
  assert.equal(calls,currencyCalls);assert.equal(localStorage.getItem('pocket-miles-personal-v3'),currencyCache);
  assert.equal(row.currency,'sgd','quick currency switch does not edit the saved place');
  assert.match($('currency-note').textContent,/this check/);
- for(const method of methods()){
-  assert.equal(card(method),'Amaze + Citi Rewards');
-  const option=document.querySelector(`[data-payment-method="${method}"]`);
-  assert.match(option.querySelector('.card-fee').textContent,/2.1%/);
-  assert.match(option.querySelector('[data-card-id=trust]').textContent,/Trust Freedom/);
-  assert.equal(option.querySelector('[data-card-id=trust]').closest('details'),null);
-  assert.match(option.querySelector('.checkout-note').textContent,/Amaze card/);
- }
+ for(const method of methods())assert.equal(card(method),'Amaze + Citi');
+ assert.match(document.querySelector('tr[data-card-id=amaze] .matrix-fee').textContent,/2.1% FX/);
+ assert.match(document.querySelector('tr[data-card-id=trust] .matrix-fee').textContent,/No FX fee/);
+ assert.match($('amount-label').textContent,/equivalent/);
  input('pay-amount','100');
- assert.equal(document.querySelector('[data-payment-method="tap"] .card-miles').firstChild.textContent,'≈ 400');
- assert.match(document.querySelector('[data-payment-method="tap"]').textContent,/S\$2\.10/);
+ assert.equal(cell('tap','amaze').querySelector('.matrix-miles').textContent,'400');
+ assert.match(document.querySelector('.comparison-details').textContent,/S\$2\.10/);
  row.currency='foreign';
  server.data.settings.cards=['citi','trust'];server.data.settings.citiRemaining=0;server.data.settings.citiUpdated=new Date().toISOString();server.revision++;
  $('refresh').click();await until(()=>!$('refresh').disabled);
  assert.equal(card('tap'),'Trust Freedom');
- assert.equal(document.querySelectorAll('[data-payment-method=tap] .ranked-card').length,3);
+ assert.equal(document.querySelectorAll('td[data-method=tap]').length,3);
  server.data.settings.amaze=false;server.revision++;
  $('refresh').click();await until(()=>!$('refresh').disabled);
  assert.equal(document.querySelectorAll('[data-card-id="amaze"]').length,0);
  assert.match($('result').textContent,/Amaze \+ Citi Rewards is not enabled/);
  // Excluded payments keep the entire wallet on screen, with no fabricated winner.
  input('merchant-search','AXS');
- assert.equal(document.querySelectorAll('.ranked-card').length,2);
- assert.equal(document.querySelector('.top-card'),null);
- for(const option of document.querySelectorAll('.ranked-card')){
-  assert.equal(option.closest('details'),null);assert.match(option.textContent,/No miles assumed/);
-  assert.equal(option.querySelector('.card-miles').firstChild.textContent,'≈ 0');
+ assert.equal(document.querySelectorAll('.card-matrix tbody tr').length,2);
+ assert.equal(document.querySelector('.best-cell'),null);
+ for(const option of document.querySelectorAll('.card-matrix td')){
+  assert.equal(option.closest('details'),null);assert.match(option.textContent,/Excluded/);
+  assert.equal(option.querySelector('.matrix-miles').textContent,'0');
  }
  assert.doesNotMatch($('result').textContent,/NaN/);
+ server.data.settings.amaze=true;server.data.settings.trustMiles=false;server.revision++;
+ $('refresh').click();await until(()=>!$('refresh').disabled);
+ input('merchant-search','hotel');
+ for(const method of methods()){
+  assert.match(cell(method,'amaze').textContent,/—Not estimated/);
+  assert.match(cell(method,'trust').textContent,/0Mode off/);
+ }
+ assert.equal(document.querySelector('.card-matrix tbody tr:last-child').dataset.cardId,'amaze');
+ $('clear-search').click();
+ assert.equal($('recents').hidden,false);assert.equal($('quick-categories').hidden,false);
+ assert.equal($('checkout-controls').hidden,true);
  input('merchant-search',displaySaved(row));
  // Stored HTML-looking merchant data must remain text.
  document.querySelector('[data-edit-current]').click();input('name','<img src=x onerror=alert(1)>');event('merchant-form','submit');
