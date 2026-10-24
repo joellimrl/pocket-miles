@@ -36,8 +36,10 @@ Paired browser connections have no automatic expiry. The 15-minute setup key can
 ## What is included
 
 - Pay, Places and Wallet screens; optional amount for more precise estimates.
+- A Charged in selector on Pay switches this purchase between SGD and foreign currency without changing the saved place. Save through the merchant editor to retain a currency change.
 - Recommendations for tap/phone, online/app and inserted-card payments shown together for stores and restaurants. Online platforms such as Shopee, Lazada and GrabFood show online only; SimplyGo shows tap only, and taxi terminals show tap and insert. Amount and wallet changes recalculate every displayed method.
 - HSBC Revolution, Citi Rewards, KrisFlyer UOB and Trust Freedom, with optional Amaze routing.
+- An enabled, eligible Amaze + Citi option stays visible beside the recommendation for every checkout, even without an amount or when its bonus allowance is exhausted. The result explains when the pairing is disabled or the category is excluded. SGD costs are shown as 1% with a S$0.50 minimum until an amount is supplied.
 - One-off purchase checks with an optional Save to my places checkbox. New purchase checks default to not saving; explicit Add/Save actions and editing a saved place default to saving.
 - Saved merchant category, branch/route, payment method, currency, notes and confirmation status.
 - Separate branch and online entries; ambiguous matches require selection.
@@ -57,7 +59,7 @@ This is a single-owner app, with up to 500 explicitly saved merchant entries. Th
 - .github/workflows/checks.yml: tests and builds pull requests.
 - .github/workflows/pages.yml: publishes only when manually run on main.
 
-Only dist/ is uploaded to Pages. Tooling, tests, node_modules, local data and documentation are excluded. Relative asset URLs and the manifest scope support the /pocket-miles/ project path. Close existing app windows and reopen after a release to let the new service worker activate.
+Only dist/ is uploaded to Pages. Tooling, tests, node_modules, local data and documentation are excluded. Relative asset URLs and the manifest scope support the /pocket-miles/ project path. Use Update app in the footer, or open https://joellimrl.github.io/pocket-miles/update.html to load a new release. This uncached entry updates and activates the app's service worker, then returns to Pay; it never clears device credentials, IndexedDB or the notebook. Shell downloads bypass the browser HTTP cache. App v3.3.2 is shown in the footer. Existing tabs are not forcibly reloaded; reopen them after saving any forms.
 
 ## Maintaining card rules
 

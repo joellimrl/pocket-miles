@@ -28,7 +28,7 @@ export function recommend(input,settings=WALLET_DEFAULTS,now=new Date().toISOStr
  if(!owned.includes('hsbc'))warnings=warnings.filter(w=>!(/HSBC/.test(w)&&!/Citi/.test(w)));
  if(!owned.includes('citi'))warnings=warnings.filter(w=>!(/Citi/.test(w)&&!/HSBC/.test(w)));
  if(!owned.includes('uob'))warnings=warnings.filter(w=>!/UOB|annual target/.test(w));
- const unknown=[...new Set(options.filter(o=>o.unknownCap&&o.eligible).map(o=>o.id==='amaze'?'Citi':o.short))];
+ const unknown=[...new Set([...options,...(paired?[paired]:[])].filter(o=>o.unknownCap&&o.eligible).map(o=>o.id==='amaze'?'Citi':o.short))];
  warnings=warnings.filter(w=>!/allowance not confirmed/.test(w));
  if(unknown.length)warnings.unshift(`${unknown.join(' and ')} bonus allowance is unconfirmed. This choice assumes allowance remains; update it in Wallet.`);
  if(quick&&best?.cap>0&&!best.unknownCap)warnings.unshift(`S$${best.cap} bonus allowance remains on this card. Add the amount if this purchase could use it up.`);
@@ -38,6 +38,6 @@ export function recommend(input,settings=WALLET_DEFAULTS,now=new Date().toISOStr
   warnings.unshift('Ranked by estimated miles before FX costs. This is not a net-value comparison. Exchange rates and fees can outweigh the extra miles.');
   if(paired)warnings.push('Amaze estimates assume the reported Citi Rewards Mastercard pairing qualifies for the online bonus. Merchant exclusions and Citi’s shared statement-month cap still apply.');
  }
- const amaze=r.foreign?paired:!quick&&paired&&(!best||paired.miles>best.miles+.01)?paired:null;
+ const amaze=paired&&quick&&!r.foreign?{...paired,fee:null,feeLabel:'1% SGD fee · minimum S$0.50 per transaction'}:paired;
  return{...r,quick,best,options,warnings,amaze,feeFreeAlternative:r.foreign&&feeFree?.id!==best?.id?feeFree:null};
 }

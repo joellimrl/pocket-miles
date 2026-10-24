@@ -21,7 +21,9 @@ test('SGD Amaze is optional and excluded from the fee-free default ranking',()=>
  assert.equal(pay('groceries',{amount:20}).amaze,null);
  const r=pay('groceries',{amount:20},{...settings,amaze:true});
  assert.equal(r.best.id,'trust');assert.equal(r.amaze.id,'amaze');
- assert.equal(pay('groceries',{},{...settings,amaze:true}).amaze,null);
+ const quick=pay('groceries',{},{...settings,amaze:true});
+ assert.equal(quick.amaze.id,'amaze');assert.equal(quick.amaze.displayRate,4);assert.equal(quick.amaze.fee,null);
+ assert.match(quick.amaze.feeLabel,/1%.*minimum S\$0.50/);
 });
 test('Disabled miles mode and unqualified UOB are applied',()=>{
  assert.equal(pay('fastfood',{}, {...settings,uobQualified:false}).best.id,'trust');
