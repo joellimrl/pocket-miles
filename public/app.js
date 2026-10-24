@@ -18,6 +18,7 @@ const store=new Store(()=>{
  $('wallet-save').disabled=!store.online||store.busy;
  updateMerchantAction();
  $('logout').hidden=store.preview;
+ $('device-status').textContent=store.preview?'Local preview · no device pairing':store.deviceName?`Connected as ${store.deviceName} · no automatic expiry. Manage connections with /pocket devices in Telegram.`:'';
  if(active?.id)active=store.data.merchants.find(m=>m.id===active.id)||null;
  if(!walletDirty)fillWallet();
  renderLists();renderResult();
@@ -139,7 +140,7 @@ $('wallet-form').addEventListener('submit',async e=>{
  const next={...old,cards:[...document.querySelectorAll('input[name=card]:checked')].map(el=>el.value),amaze:$('wallet-amaze').checked,hsbcRemaining:$('hsbc-cap').value===''?null:Number($('hsbc-cap').value),citiRemaining:$('citi-cap').value===''?null:Number($('citi-cap').value),hsbcUpdated:dirtyCaps.hsbc?now:old.hsbcUpdated,citiUpdated:dirtyCaps.citi?now:old.citiUpdated,citiResetDate:$('citi-reset').value,uobQualified:$('uob-qualified').checked,trustMiles:$('trust-miles').checked,savedAt:now};
  try{await store.save(data=>({...data,settings:next}));walletDirty=false;fillWallet();$('wallet-error').textContent='';view('pay');notify('Wallet saved. Search a merchant to get your card.');}catch(err){$('wallet-error').textContent=err.message;}
 });
-$('login-form').addEventListener('submit',async e=>{e.preventDefault();$('login-error').textContent='Connecting…';try{await store.unlock($('password').value);$('password').value='';$('login-error').textContent='';}catch(err){$('login-error').textContent=err.message;}});
+$('login-form').addEventListener('submit',async e=>{e.preventDefault();$('login-error').textContent='Connecting…';try{await store.unlock($('password').value,$('device-name').value);$('password').value='';$('login-error').textContent='';}catch(err){$('login-error').textContent=err.message;}});
 $('logout').addEventListener('click',async()=>{try{await store.lock();active=null;walletDirty=false;}catch(err){notify(err.message);}});
 $('refresh').addEventListener('click',async()=>{if(walletDirty||document.querySelector('dialog[open]')){if(!confirm('Discard your unsaved form changes and load the latest saved details?'))return;walletDirty=false;for(const d of document.querySelectorAll('dialog[open]'))d.close();}await store.load();search();});
 let lastFocus=0;window.addEventListener('focus',()=>{if(Date.now()-lastFocus>30000&&!document.querySelector('dialog[open]')&&!walletDirty){lastFocus=Date.now();store.load();}});

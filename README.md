@@ -26,12 +26,12 @@ Open http://127.0.0.1:8741/pocket-miles/. Set PORT if that port is in use. The l
 1. Merge and deploy the backend PR using Streetbot’s existing Fly workflow.
 2. Merge the app PR here.
 3. In this repository, run **Actions → Publish Pocket Miles → Run workflow**, selecting main. Publication is manual; pushes and merges alone do not deploy the app.
-4. Send /pocket in the owner’s private Streetbot chat and paste the resulting key into the app once.
+4. Send /pocket in the owner’s private Streetbot chat and name the browser and paste the setup key into the app within 15 minutes. Pair in the browser/home-screen installation you intend to use.
 5. Select your cards in Wallet and save your regular merchants.
 6. Connect another device with a second /pocket key to load the same notebook.
 7. Add the HTTPS app to your home screen using Safari’s Share menu or Chrome’s Install/Add to home screen option.
 
-The 90-day keys can be revoked individually through the bot reply. Disconnecting clears the key and cached notebook on that browser; it does not delete the server copy.
+Paired browser connections have no automatic expiry. The 15-minute setup key can pair only one browser identity; subsequent requests require its locally stored signing key as well. Use /pocket devices in Telegram to list and revoke connections individually. Disconnecting clears the local credential, signing key and cached notebook; revoke the server connection in Telegram too. Clearing browser data, changing browser/profile or moving to an installation with separate storage requires a new pairing. This binds access to browser storage, not physically to the hardware.
 
 ## What is included
 
@@ -64,6 +64,6 @@ Edit public/rules.js and its source links/date, then update boundary tests in te
 
 For a new card, category or schema value, also update the corresponding Streetbot feat/pocketMiles/shared modules. They are copies of these three browser modules with their relative import extensions changed from .js to .mjs. Pure reward-rate changes affect browser recommendations; schema additions need the matching backend deployed first.
 
-The 34 tests use local mocks and a DOM harness, including checks that one-off purchases do not persist, work offline and still work at the saved-place limit. Actual phone installation and authenticated cross-device MongoDB sync still require post-deployment checks.
+The 39 tests use local mocks and a DOM harness, including checks that one-off purchases do not persist, work offline and still work at the saved-place limit. Actual phone installation and authenticated cross-device MongoDB sync still require post-deployment checks.
 
 GitHub Pages uses the documented [custom workflow deployment](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).

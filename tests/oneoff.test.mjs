@@ -1,3 +1,4 @@
+import 'fake-indexeddb/auto';
 // DOM interactions with a mocked notebook; no browser or external requests.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -36,6 +37,8 @@ test('one-off purchase checks are separate from saved places',async t=>{
  const remember=value=>{$('remember-merchant').checked=value;event('remember-merchant','change');};
  const until=async fn=>{for(let i=0;i<100;i++){if(fn())return;await new Promise(r=>setTimeout(r,5));}throw new Error('UI condition timed out');};
  const cache=()=>localStorage.getItem('pocket-miles-personal-v3');
+ const {DeviceKeys}=await import('../public/device.js');
+ await new DeviceKeys().prepare(localStorage.getItem('pocket-miles-device-key'));
  await import('../public/app.js');
  assert.equal($('workspace').hidden,false);
 

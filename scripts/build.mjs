@@ -16,7 +16,7 @@ try {
 await rm(destination, { recursive: true, force: true });
 await mkdir(destination);
 const assets = [
-  'index.html', 'style.css', 'app.js', 'store.js', 'rules.js', 'merchants.js',
+  'index.html', 'style.css', 'app.js', 'store.js', 'device.js', 'rules.js', 'merchants.js',
   'recommend.js', 'sw.js', 'manifest.webmanifest', 'icon.svg', 'icon-192.png',
   'icon-512.png', 'icon-maskable.png'
 ];

@@ -1,3 +1,4 @@
+import 'fake-indexeddb/auto';
 // DOM interaction test only; no browser automation or external requests.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -17,6 +18,7 @@ test('connect, select wallet, save merchant, recall name, edit route and disambi
  let server={data:{version:1,merchants:[],settings:{...WALLET_DEFAULTS}},revision:0},calls=0;
  globalThis.fetch=async(_url,options)=>{
   calls++;
+  if(options.method==='POST')return Response.json({name:JSON.parse(options.body).name,expiresAt:null});
   if(options.method==='PUT'){
    const data=JSON.parse(options.body);
    if(data.revision!==server.revision)return Response.json({error:'Conflict'},{status:409});

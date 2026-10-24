@@ -1,3 +1,4 @@
+import 'fake-indexeddb/auto';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 const values=new Map();
@@ -10,7 +11,9 @@ const initial=()=>({data:{version:1,merchants:[],settings:{...WALLET_DEFAULTS,ca
 test('connect, persist, offline cache, conflict protection and revoke recovery',async()=>{
  let server=initial(),mode='ok',calls=0;
  globalThis.fetch=async(url,options)=>{
-  calls++;assert.equal(url,'https://streetbot.fly.dev/pocket-miles/notebook');
+  calls++;assert.match(options.headers.Authorization,/^PocketDevice /);
+  if(url.endsWith('/device'))return Response.json({name:JSON.parse(options.body).name,expiresAt:null});
+  assert.equal(url,'https://streetbot.fly.dev/pocket-miles/notebook');
   assert.equal(options.headers['X-Auth'],key);assert.equal(options.credentials,'omit');
   if(mode==='offline')throw new TypeError('Mock network unavailable');
   if(mode==='revoked')return Response.json({error:'Unauthorized'},{status:401});
@@ -23,7 +26,7 @@ test('connect, persist, offline cache, conflict protection and revoke recovery',
  };
  const s=new Store(()=>{});
  await s.load();assert.equal(s.locked,true);assert.equal(calls,0);
- await assert.rejects(s.unlock('bad'),/full connection key/);assert.equal(calls,0);
+ await assert.rejects(s.unlock('bad'),/full setup key/);assert.equal(calls,0);
  await s.unlock(key);assert.equal(s.ready,true);
  assert.equal(values.get('pocket-miles-device-key'),key);
  const restored=new Store(()=>{});await restored.load();assert.deepEqual(restored.data.settings.cards,['trust']);
