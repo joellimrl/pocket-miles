@@ -5,12 +5,13 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {JSDOM} from 'jsdom';
 import {WALLET_DEFAULTS} from '../public/recommend.js';
-test('connect, select wallet, save merchant, recall name, edit route and disambiguate branches',async()=>{
+test('connect, compare checkout methods, save merchant, recall name, edit route and disambiguate branches',async t=>{
  const html=await readFile(new URL('../public/index.html',import.meta.url),'utf8');
  const dom=new JSDOM(html,{url:'https://joellimrl.github.io/pocket-miles/'});
  const {window}=dom;window.scrollTo=()=>{};
  const originalTimeout=globalThis.setTimeout,timers=[];
  globalThis.setTimeout=(...args)=>{const timer=originalTimeout(...args);timers.push(timer);return timer;};
+ t.after(()=>{for(const timer of timers)clearTimeout(timer);globalThis.setTimeout=originalTimeout;dom.window.close();});
  window.HTMLDialogElement.prototype.showModal=function(){this.setAttribute('open','');};
  window.HTMLDialogElement.prototype.close=function(){this.removeAttribute('open');};
  for(const key of ['window','document','location','localStorage','navigator'])Object.defineProperty(globalThis,key,{value:window[key],configurable:true});
@@ -39,7 +40,25 @@ test('connect, select wallet, save merchant, recall name, edit route and disambi
  for(const checkbox of document.querySelectorAll('input[name=card]')){checkbox.checked=true;checkbox.dispatchEvent(new window.Event('input',{bubbles:true}));}
  $('uob-qualified').checked=true;event('wallet-form','input');event('wallet-form','submit');
  await until(()=>server.data.settings.cards.length===4&&$('pay').hidden===false);
+ const methods=()=>[...document.querySelectorAll('[data-payment-method]')].map(el=>el.dataset.paymentMethod);
+ const card=method=>document.querySelector(`[data-payment-method="${method}"] .recommendation h4`)?.textContent;
+ const beforeComparisonCalls=calls,beforeComparisonData=JSON.stringify(server);
+ input('merchant-search',"McDonald's");
+ assert.deepEqual(methods(),['tap','online','insert']);
+ assert.equal(card('tap'),'KrisFlyer UOB');assert.equal(card('online'),'Citi Rewards');assert.equal(card('insert'),'KrisFlyer UOB');
+ input('pay-amount','12.50');
+ for(const method of methods())assert.match(document.querySelector(`[data-payment-method="${method}"] .recommendation`).textContent,/BEST ESTIMATE FOR THIS AMOUNT/);
+ assert.equal(document.querySelector('[data-payment-method="online"] .reward-number').firstChild.textContent,'≈ 48');
+ assert.equal(calls,beforeComparisonCalls);assert.equal(JSON.stringify(server),beforeComparisonData,'comparisons never save or change a merchant');
+ input('merchant-search','Shopee');assert.deepEqual(methods(),['online']);
+ input('merchant-search','GrabFood');assert.deepEqual(methods(),['online']);
+ input('merchant-search','McDelivery');assert.deepEqual(methods(),['online']);
+ input('merchant-search','SimplyGo');assert.deepEqual(methods(),['tap']);
+ input('merchant-search','taxi');assert.deepEqual(methods(),['tap','insert']);
+ input('pay-amount','-1');assert.equal(methods().length,0);assert.match($('result').textContent,/Enter an amount/);
+ input('pay-amount','');
  input('merchant-search','Guardian');assert.match($('result').textContent,/HSBC Revolution/);
+ assert.deepEqual(methods(),['tap','online','insert']);
  const callsBefore=calls;input('merchant-search','Guardian');assert.equal(calls,callsBefore,'typing needs no API request');
  document.querySelector('[data-save-current]').click();
  assert.equal($('category').value,'pharmacy');input('variant','Tampines');event('merchant-form','submit');
@@ -50,7 +69,8 @@ test('connect, select wallet, save merchant, recall name, edit route and disambi
  document.querySelector('[data-edit-current]').click();
  $('merchant-copy').click();input('variant','website');$('method').value='online';event('merchant-form','submit');
  await until(()=>server.data.merchants.length===2&&!$('merchant-dialog').open);
- assert.match($('result').querySelector('.recommendation').textContent,/Citi Rewards/);
+ assert.deepEqual(methods(),['tap','online','insert'],'saved online preference still shows the other methods');
+ assert.equal(card('online'),'Citi Rewards');
  $('clear-search').click();input('merchant-search','Guardian');
  assert.equal($('matches').hidden,false);assert.equal($('result').innerHTML,'');
  event('pay-amount','input');assert.equal($('result').innerHTML,'','amount rerender must not bypass ambiguous routes');
@@ -58,15 +78,12 @@ test('connect, select wallet, save merchant, recall name, edit route and disambi
  assert.ok($('result').querySelector('.recommendation'));
  const row=server.data.merchants.find(m=>$('merchant-search').value.includes(m.variant));
  row.method='insert';server.revision++;
- $('refresh').click();await until(()=>$('result').textContent.includes('Insert card'));
- assert.match($('result').querySelector('.recommendation').textContent,/Trust Freedom/);
+ $('refresh').click();await until(()=>!$('refresh').disabled);
+ assert.equal(card('insert'),'Trust Freedom');
  // Stored HTML-looking merchant data must remain text.
  document.querySelector('[data-edit-current]').click();input('name','<img src=x onerror=alert(1)>');event('merchant-form','submit');
  await until(()=>server.data.merchants.some(m=>m.name.startsWith('<img'))&&!$('merchant-dialog').open);
  assert.equal(document.querySelector('#result img'),null);
  $('logout').click();await until(()=>$('workspace').hidden);
  assert.equal(localStorage.length,0);
- for(const timer of timers)clearTimeout(timer);
- globalThis.setTimeout=originalTimeout;
- dom.window.close();
 });
