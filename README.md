@@ -2,10 +2,10 @@
 
 A personal Singapore credit-card companion with its own repository and GitHub Pages release. Save your cards, then type a merchant name for a recommendation. Check one-off purchases without saving; keep the merchants you want to reuse. Install it on your phone’s home screen.
 
-**Status:** app and backend remain under review; this repository has not published a live app.
+**Status:** app and backend are live. Further app releases use the manual Pages workflow.
 
 - Repository: https://github.com/joellimrl/pocket-miles
-- Eventual app address: https://joellimrl.github.io/pocket-miles/
+- App address: https://joellimrl.github.io/pocket-miles/
 - Backend review: https://github.com/joellimrl/streetBot/pull/1
 - [Full backend explanation](docs/backend.md)
 
@@ -36,6 +36,7 @@ Paired browser connections have no automatic expiry. The 15-minute setup key can
 ## What is included
 
 - Pay, Places and Wallet screens; optional amount for more precise estimates.
+- Recommendations for tap/phone, online/app and inserted-card payments shown together for stores and restaurants. Online platforms such as Shopee, Lazada and GrabFood show online only; SimplyGo shows tap only, and taxi terminals show tap and insert. Amount and wallet changes recalculate every displayed method.
 - HSBC Revolution, Citi Rewards, KrisFlyer UOB and Trust Freedom, with optional Amaze routing.
 - One-off purchase checks with an optional Save to my places checkbox. New purchase checks default to not saving; explicit Add/Save actions and editing a saved place default to saving.
 - Saved merchant category, branch/route, payment method, currency, notes and confirmation status.
@@ -43,7 +44,7 @@ Paired browser connections have no automatic expiry. The 15-minute setup key can
 - JSON export/import and cached offline lookups after a successful connection.
 - Sync on load, eligible refresh/focus/reconnection, and save. Searches run locally. Saves require a live connection and conflicting revisions are rejected.
 
-Rules are a snapshot dated 23 October 2026, with sources linked inside the app. They are not automatically updated. Suggestions for new merchants are assumptions, not live MCC lookup. Bonus allowances are manual and searches do not deduct spending. Fee-free payment/FX routes are prioritised; transfer fees, merchant surcharges, fuel discounts and promotional targets are outside the ranking.
+Rules are a snapshot dated 23 October 2026, with sources linked inside the app. They are not automatically updated. Suggestions for new merchants are assumptions, not live MCC lookup. Checkout methods are suggested from the merchant name and category, not live acceptance data. Each comparison reuses the selected category, currency and exclusions; a merchant can code differently online, so save a separate route if you have confirmed different details. Saved payment preferences do not hide other applicable comparisons, and viewing comparisons never writes extra merchant entries. The online-wallet exception applies only to online checkout, not tapping a phone. Bonus allowances are manual and searches do not deduct spending. Fee-free payment/FX routes are prioritised; transfer fees, merchant surcharges, fuel discounts and promotional targets are outside the ranking.
 
 This is a single-owner app, with up to 500 explicitly saved merchant entries. The limit does not count searches or one-off checks. One-off details live only in page memory: they are not written to the notebook, local cache or backup, and disappear when the page is reloaded or another merchant is selected. A full saved list still allows one-off checks and edits to existing entries. After a successful wallet load, one-off checks also work offline; saving requires a connection. It has no bank account connection and never needs card numbers.
 
@@ -64,6 +65,6 @@ Edit public/rules.js and its source links/date, then update boundary tests in te
 
 For a new card, category or schema value, also update the corresponding Streetbot feat/pocketMiles/shared modules. They are copies of these three browser modules with their relative import extensions changed from .js to .mjs. Pure reward-rate changes affect browser recommendations; schema additions need the matching backend deployed first.
 
-The 39 tests use local mocks and a DOM harness, including checks that one-off purchases do not persist, work offline and still work at the saved-place limit. Actual phone installation and authenticated cross-device MongoDB sync still require post-deployment checks.
+Tests use local mocks and a DOM harness, including payment-method comparisons and checks that one-off purchases do not persist, work offline and still work at the saved-place limit. Actual phone installation and authenticated cross-device MongoDB sync still require post-deployment checks.
 
 GitHub Pages uses the documented [custom workflow deployment](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).

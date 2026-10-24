@@ -52,7 +52,7 @@ const aliases = [
  [/\b(taxi|comfortdelgro)\b/i,'taxi'],
  [/\b(fairprice|fair price|ntuc|cold storage|cs fresh|giant|sheng siong|don don donki|supermarket|grocer(?:y|ies))\b/i,'groceries'],
  [/\b(watsons|guardian|unity|pharmac(?:y|ies)|drugstore)\b/i,'pharmacy'],
- [/\b(mcdonald.?s?|mcd|kfc|burger king|subway|fast food|food court|foodcourt|koufu)\b/i,'fastfood'],
+ [/\b(mcdonald.?s?|mcd|mcdelivery|mc delivery|kfc|burger king|subway|fast food|food court|foodcourt|koufu)\b/i,'fastfood'],
  [/\b(bakery|bakeries|breadtalk|confectionery)\b/i,'bakery'],
  [/\b(restaurant|cafe|café|coffee|starbucks|dining|dinner|lunch|bar)\b/i,'dining'],
  [/\b(uniqlo|zara|h&m|clothes|clothing|shoes|fashion|department|takashimaya|isetan)\b/i,'fashion'],

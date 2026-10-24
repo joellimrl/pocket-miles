@@ -1,11 +1,11 @@
 import {CATEGORIES,CHECKED,SOURCES,parseQuery} from './rules.js';
-import {CARDS,WALLET_DEFAULTS,recommend} from './recommend.js';
+import {CARDS,WALLET_DEFAULTS} from './recommend.js';
+import {PAYMENT_NAMES as methodName,comparePayments} from './payments.js';
 import {displayName,matchMerchants,queryName,normalize,validateMerchant,validateNotebook,MAX_MERCHANTS} from './merchants.js';
 import {Store} from './store.js';
 const $=id=>document.getElementById(id);
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num=n=>new Intl.NumberFormat('en-SG',{maximumFractionDigits:2}).format(n);
-const methodName={tap:'Tap / phone',online:'Online / app',insert:'Insert card'};
 const categoryName=id=>CATEGORIES.find(c=>c.id===id)?.name||id;
 let active=null,editor=null,walletDirty=false,dirtyCaps={hsbc:false,citi:false},toastTimer,installPrompt;
 const store=new Store(()=>{
@@ -31,7 +31,7 @@ function current(){
  const text=$('merchant-search').value,p=parseQuery(text);
  return p.category?{name:queryName(text),variant:'',category:p.category,method:p.method||CATEGORIES.find(c=>c.id===p.category).method,currency:'sgd',uobExcluded:p.uobExcluded,onlineWallet:false,confidence:'guess',notes:''}:null;
 }
-function select(m){active=m;$('merchant-search').value=displayName(m);$('clear-search').hidden=false;$('matches').hidden=true;$('search-tip').textContent=m.id?'Loaded your saved details. Your default card is ready below.':'One-off check. This merchant has not been saved.';renderResult();}
+function select(m){active=m;$('merchant-search').value=displayName(m);$('clear-search').hidden=false;$('matches').hidden=true;$('search-tip').textContent=m.id?'Loaded your saved details. Compare the ways to pay below.':'One-off check. This merchant has not been saved.';renderResult();}
 function search(){
  const text=$('merchant-search').value,found=matchMerchants(store.data.merchants,text),parsed=parseQuery(text);
  const literal=found.exact&&[found.exact.name,displayName(found.exact)].some(n=>normalize(n)===normalize(text));
@@ -53,15 +53,25 @@ function renderResult(){
  if(!store.ready){$('result').innerHTML='';return;}
  if(!owned.length){$('result').innerHTML='<div class="empty-card"><span aria-hidden="true">▱</span><h2>Start with your wallet.</h2><p>Select the cards you own once. Every merchant search will compare just those cards.</p><button class="primary" data-wallet>Choose my cards <span>↗</span></button></div>';return;}
  if(!m){$('result').innerHTML=query?`<div class="empty-card compact"><h2>How are you paying?</h2><p>Choose the payment details for ${esc(queryName(query)||query)} to compare your cards. Saving this merchant is optional.</p><button class="primary" data-add>Check this purchase <span>↗</span></button></div>`:'';return;}
- const r=recommend({...m,amount:$('pay-amount').value},settings());
- const context=`<div class="merchant-line"><div><strong>${esc(displayName(m))}</strong><small>${esc(categoryName(m.category))} · ${methodName[m.method]} · ${m.currency==='sgd'?'SGD':'Foreign currency'}</small><small>${m.id?'Saved place':'One-off · not saved'}</small></div><div class="merchant-actions"><button class="quiet" data-edit-current>${m.id?'Edit':'Payment details'}</button>${m.id?'':'<button class="quiet" data-save-current>Save to my places ＋</button>'}</div></div>`;
+ const comparisons=comparePayments(m,$('pay-amount').value,settings()),r=comparisons[0].result;
+ const context=`<div class="merchant-line"><div><strong>${esc(displayName(m))}</strong><small>${esc(categoryName(m.category))} · ${m.currency==='sgd'?'SGD':'Foreign currency'}</small><small>${m.id?'Saved place':'One-off · not saved'}</small></div><div class="merchant-actions"><button class="quiet" data-edit-current>${m.id?'Edit':'Payment details'}</button>${m.id?'':'<button class="quiet" data-save-current>Save to my places ＋</button>'}</div></div>`;
  if(r.status==='amount'){$('result').innerHTML=context+`<p class="warning">${esc(r.message)}</p>`;return;}
  if(r.status==='excluded'){$('result').innerHTML=context+`<div class="empty-card compact"><h2>No rewards route assumed.</h2><p>${esc(r.message)}</p></div>`;return;}
- if(!r.best){$('result').innerHTML=context+'<div class="empty-card compact"><h2>No eligible fee-free route in your wallet.</h2><p>Check your selected cards, card modes and merchant category.</p><button class="quiet" data-wallet>Review wallet ↗</button></div>';return;}
- const b=r.best,other=r.options.filter(o=>o.id!==b.id&&o.eligible).sort((a,c)=>r.quick?c.displayRate-a.displayRate:c.miles-a.miles);
- const warnings=r.warnings.map(w=>`<p class="warning">${esc(w)}</p>`).join('');
+ const warningMethods=new Map();
+ for(const {method,result} of comparisons)for(const warning of result.warnings){
+  if(!warningMethods.has(warning))warningMethods.set(warning,[]);
+  warningMethods.get(warning).push(methodName[method]);
+ }
+ const warnings=[...warningMethods].map(([warning,methods])=>`<p class="warning">${methods.length<comparisons.length?`<strong>${methods.join(' / ')}:</strong> `:''}${esc(warning)}</p>`).join('');
  const amountNote=r.quick?'Rate comparison · amount optional':`S$${num(r.amount)}${r.foreign?' SGD equivalent':''} · after modelled rounding`;
- $('result').innerHTML=context+`<article class="recommendation"><div class="eyebrow">${r.quick?'YOUR DEFAULT CARD':'BEST ESTIMATE FOR THIS AMOUNT'}</div><h2>${esc(b.name)}</h2><p class="route">${methodName[m.method]}${m.method==='online'?' at checkout':' directly'}</p><div class="reward-number">${r.quick?num(b.displayRate):'≈ '+num(b.miles)}<span>${r.quick?'miles / S$':'KrisFlyer miles'}</span></div><div class="rec-bottom"><span>${esc(amountNote)}<br>${esc(b.feeLabel)}</span><span aria-hidden="true">↗</span></div></article><p class="reason">${esc(b.reason)}${r.quick&&b.cap===0?' Its bonus allowance is used up; the rate above is the base rate.':''}</p>${m.confidence!=='confirmed'?'<p class="assumption">Category is an assumption. Check the merchant’s bank classification before relying on the bonus.</p>':''}${m.notes?`<p class="personal-note">${esc(m.notes)}</p>`:''}${warnings}${other.length?`<details class="alternatives"><summary>Your other cards <span>＋</span></summary>${other.map(o=>`<div class="alternative"><span class="card-mark ${o.color}"></span><strong>${esc(o.name)}</strong><span>${r.quick?num(o.displayRate)+' miles/$':'≈ '+num(o.miles)+' miles'}</span></div>`).join('')}</details>`:''}${r.amaze?`<div class="amaze"><strong>Amaze + Citi Rewards · ≈ ${num(r.amaze.miles)} miles</strong><p>${esc(r.amaze.feeLabel)}. Shares Citi’s bonus allowance. Compare the extra cost before choosing this route.</p></div>`:''}`;
+ const help=comparisons.length>1?'Use the option that matches your checkout. Methods shown are suggestions; availability and bank classification can differ between the counter and a website or app.':'Showing the checkout method for this merchant or category.';
+ $('result').innerHTML=context+`<div class="comparison-heading"><h2>${comparisons.length>1?'Your cards, by payment method':'Your card for this checkout'}</h2><p class="fine">${esc(amountNote)}</p></div><div class="payment-comparisons">${comparisons.map(({method,result})=>renderPayment(method,result,m)).join('')}</div><p class="fine">${help}</p>${m.confidence!=='confirmed'?'<p class="assumption">Category is an assumption. Check the merchant’s bank classification before relying on the bonus.</p>':comparisons.length>1?'<p class="assumption">Your checked category is reused for these comparisons. A different checkout can have a different bank classification.</p>':''}${m.notes?`<p class="personal-note">${esc(m.notes)}</p>`:''}${warnings}`;
+}
+function renderPayment(method,r,m){
+ const heading=`<h3 class="payment-heading">${methodName[method]}</h3>`;
+ if(!r.best)return `<section class="payment-option" data-payment-method="${method}">${heading}<p class="fine">No eligible fee-free card in your wallet for this payment.</p><button class="quiet" data-wallet>Review wallet ↗</button></section>`;
+ const b=r.best,other=r.options.filter(o=>o.id!==b.id&&o.eligible).sort((a,c)=>r.quick?c.displayRate-a.displayRate:c.miles-a.miles);
+ return `<section class="payment-option" data-payment-method="${method}">${heading}<article class="recommendation"><div class="eyebrow">${r.quick?'YOUR DEFAULT CARD':'BEST ESTIMATE FOR THIS AMOUNT'}</div><h4>${esc(b.name)}</h4><div class="reward-number">${r.quick?num(b.displayRate):'≈ '+num(b.miles)}<span>${r.quick?'miles / S$':'KrisFlyer miles'}</span></div><p class="payment-fee">${esc(b.feeLabel)}</p></article>${method==='online'?`<p class="checkout-note">${m.onlineWallet?'Apple Pay / Google Pay at online checkout selected.':'Pay with the card directly online. Using Apple Pay / Google Pay at checkout? Set this in Payment details.'}</p>`:''}<details class="payment-details"><summary>Why this card & alternatives <span>＋</span></summary><p class="reason">${esc(b.reason)}${r.quick&&b.cap===0?' Its bonus allowance is used up; the rate above is the base rate.':''}</p>${other.map(o=>`<div class="alternative"><span class="card-mark ${o.color}"></span><strong>${esc(o.name)}</strong><span>${r.quick?num(o.displayRate)+' miles/$':'≈ '+num(o.miles)+' miles'}</span></div>`).join('')}${r.amaze?`<div class="amaze"><strong>Amaze + Citi Rewards · ≈ ${num(r.amaze.miles)} miles</strong><p>${esc(r.amaze.feeLabel)}. Shares Citi’s bonus allowance. Compare the extra cost before choosing this route.</p></div>`:''}</details></section>`;
 }
 function renderLists(){
  const all=[...store.data.merchants].sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)),q=normalize($('places-search').value);
