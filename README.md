@@ -1,9 +1,68 @@
 # Pocket Miles
 
-Personal Singapore credit-card companion. The app implementation is being reviewed on a separate branch before publication.
+A personal Singapore credit-card companion with its own repository and GitHub Pages release. Save your cards and merchant details once, then type a merchant name for a recommendation. Install it on your phone’s home screen.
 
-Planned GitHub Pages address: https://joellimrl.github.io/pocket-miles/
+**Status:** app and backend remain under review; this repository has not published a live app.
 
-Backend review: https://github.com/joellimrl/streetBot/pull/1
+- Repository: https://github.com/joellimrl/pocket-miles
+- Eventual app address: https://joellimrl.github.io/pocket-miles/
+- Backend review: https://github.com/joellimrl/streetBot/pull/1
+- [Full backend explanation](docs/backend.md)
 
-Nothing is deployed from this bootstrap branch. Publishing will use a manually triggered GitHub Pages workflow after review.
+The browser app is independent of ChatGPT and the portfolio repository. Its private data service remains inside the existing Streetbot/Fly backend and MongoDB. Public source code contains no device credentials, saved card selection or merchant records.
+
+## Local preview
+
+Node 22.9 or newer:
+
+    npm ci --ignore-scripts
+    npm test
+    npm run dev
+
+Open http://127.0.0.1:8741/pocket-miles/. Set PORT if that port is in use. The loopback-only preview stores data in ignored data/preview.json, needs no connection key, and does not contact Streetbot, Telegram or MongoDB.
+
+## Production setup after review
+
+1. Merge and deploy the backend PR using Streetbot’s existing Fly workflow.
+2. Merge the app PR here.
+3. In this repository, run **Actions → Publish Pocket Miles → Run workflow**, selecting main. Publication is manual; pushes and merges alone do not deploy the app.
+4. Send /pocket in the owner’s private Streetbot chat and paste the resulting key into the app once.
+5. Select your cards in Wallet and save your regular merchants.
+6. Connect another device with a second /pocket key to load the same notebook.
+7. Add the HTTPS app to your home screen using Safari’s Share menu or Chrome’s Install/Add to home screen option.
+
+The 90-day keys can be revoked individually through the bot reply. Disconnecting clears the key and cached notebook on that browser; it does not delete the server copy.
+
+## What is included
+
+- Pay, Places and Wallet screens; optional amount for more precise estimates.
+- HSBC Revolution, Citi Rewards, KrisFlyer UOB and Trust Freedom, with optional Amaze routing.
+- Saved merchant category, branch/route, payment method, currency, notes and confirmation status.
+- Separate branch and online entries; ambiguous matches require selection.
+- JSON export/import and cached offline lookups after a successful connection.
+- Sync on load, eligible refresh/focus/reconnection, and save. Searches run locally. Saves require a live connection and conflicting revisions are rejected.
+
+Rules are a snapshot dated 23 October 2026, with sources linked inside the app. They are not automatically updated. Suggestions for new merchants are assumptions, not live MCC lookup. Bonus allowances are manual and searches do not deduct spending. Fee-free payment/FX routes are prioritised; transfer fees, merchant surcharges, fuel discounts and promotional targets are outside the ranking.
+
+This is a single-owner app, with up to 500 saved merchant entries. It has no bank account connection and never needs card numbers.
+
+## Source and builds
+
+- public/: browser application and service worker.
+- scripts/preview.mjs: local-only development server.
+- scripts/build.mjs: explicit public-asset allowlist copied to dist/.
+- tests/: isolated recommendation, schema, store and DOM tests.
+- .github/workflows/checks.yml: tests and builds pull requests.
+- .github/workflows/pages.yml: publishes only when manually run on main.
+
+Only dist/ is uploaded to Pages. Tooling, tests, node_modules, local data and documentation are excluded. Relative asset URLs and the manifest scope support the /pocket-miles/ project path. Close existing app windows and reopen after a release to let the new service worker activate.
+
+## Maintaining card rules
+
+Edit public/rules.js and its source links/date, then update boundary tests in tests/rules.test.mjs. Selection and quick comparisons are in public/recommend.js; notebook validation is in public/merchants.js.
+
+For a new card, category or schema value, also update the corresponding Streetbot feat/pocketMiles/shared modules. They are copies of these three browser modules with their relative import extensions changed from .js to .mjs. Pure reward-rate changes affect browser recommendations; schema additions need the matching backend deployed first.
+
+The 28 tests use local mocks and a DOM harness. Actual phone installation and authenticated cross-device MongoDB sync still require post-deployment checks.
+
+GitHub Pages uses the documented [custom workflow deployment](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).
