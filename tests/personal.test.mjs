@@ -17,10 +17,10 @@ test('Quick rates respect exhausted caps; amount accounts for partial allowance 
  assert.equal(pay('dining',{amount:100},{...settings,hsbcRemaining:10}).best.id,'uob');
  assert.equal(pay('general').best.id,'trust');assert.equal(pay('general',{amount:4.99}).best.id,'hsbc');
 });
-test('SGD Amaze is optional and excluded from the fee-free default ranking',()=>{
+test('SGD Amaze is optional and ranked by miles with the other cards',()=>{
  assert.equal(pay('groceries',{amount:20}).amaze,null);
  const r=pay('groceries',{amount:20},{...settings,amaze:true});
- assert.equal(r.best.id,'trust');assert.equal(r.amaze.id,'amaze');
+ assert.equal(r.best.id,'amaze');assert.equal(r.amaze.id,'amaze');
  const quick=pay('groceries',{},{...settings,amaze:true});
  assert.equal(quick.amaze.id,'amaze');assert.equal(quick.amaze.displayRate,4);assert.equal(quick.amaze.fee,null);
  assert.match(quick.amaze.feeLabel,/1%.*minimum S\$0.50/);

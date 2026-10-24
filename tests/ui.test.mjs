@@ -41,14 +41,14 @@ test('connect, compare checkout methods, save merchant, recall name, edit route 
  $('uob-qualified').checked=true;event('wallet-form','input');event('wallet-form','submit');
  await until(()=>server.data.settings.cards.length===4&&$('pay').hidden===false);
  const methods=()=>[...document.querySelectorAll('[data-payment-method]')].map(el=>el.dataset.paymentMethod);
- const card=method=>document.querySelector(`[data-payment-method="${method}"] .recommendation h4`)?.textContent;
+ const card=method=>document.querySelector(`[data-payment-method="${method}"] .ranked-card h4`)?.textContent;
  const beforeComparisonCalls=calls,beforeComparisonData=JSON.stringify(server);
  input('merchant-search',"McDonald's");
  assert.deepEqual(methods(),['tap','online','insert']);
  assert.equal(card('tap'),'KrisFlyer UOB');assert.equal(card('online'),'Citi Rewards');assert.equal(card('insert'),'KrisFlyer UOB');
  input('pay-amount','12.50');
- for(const method of methods())assert.match(document.querySelector(`[data-payment-method="${method}"] .recommendation`).textContent,/BEST ESTIMATE FOR THIS AMOUNT/);
- assert.equal(document.querySelector('[data-payment-method="online"] .reward-number').firstChild.textContent,'≈ 48');
+ for(const method of methods())assert.equal(document.querySelectorAll(`[data-payment-method="${method}"] .ranked-card`).length,4);
+ assert.equal(document.querySelector('[data-payment-method="online"] .card-miles').firstChild.textContent,'≈ 48');
  assert.equal(calls,beforeComparisonCalls);assert.equal(JSON.stringify(server),beforeComparisonData,'comparisons never save or change a merchant');
  input('merchant-search','Shopee');assert.deepEqual(methods(),['online']);
  input('merchant-search','GrabFood');assert.deepEqual(methods(),['online']);
@@ -63,7 +63,7 @@ test('connect, compare checkout methods, save merchant, recall name, edit route 
  document.querySelector('[data-save-current]').click();
  assert.equal($('category').value,'pharmacy');input('variant','Tampines');event('merchant-form','submit');
  await until(()=>server.data.merchants.length===1&&!$('merchant-dialog').open);
- assert.equal($('pay-amount').value,'');assert.match($('result').textContent,/YOUR DEFAULT CARD/);
+ assert.equal($('pay-amount').value,'');assert.match($('result').textContent,/All wallet cards · most miles first/);
  $('clear-search').click();input('merchant-search','Guardian');
  assert.match($('result').textContent,/Guardian · Tampines/);
  document.querySelector('[data-edit-current]').click();
@@ -75,21 +75,26 @@ test('connect, compare checkout methods, save merchant, recall name, edit route 
  assert.equal($('matches').hidden,false);assert.equal($('result').innerHTML,'');
  event('pay-amount','input');assert.equal($('result').innerHTML,'','amount rerender must not bypass ambiguous routes');
  document.querySelector('#matches [data-select]').click();
- assert.ok($('result').querySelector('.recommendation'));
+ assert.ok($('result').querySelector('.ranked-card'));
  const row=server.data.merchants.find(m=>$('merchant-search').value.includes(m.variant));
  row.method='insert';server.revision++;
  $('refresh').click();await until(()=>!$('refresh').disabled);
  assert.equal(card('insert'),'Trust Freedom');
  // Foreign comparisons must include Amaze before an amount is entered, and
- // make its spread and the fee-free alternative visible outside disclosure.
+ // keep every card and its fees visible outside disclosure.
  server.data.settings.amaze=true;server.revision++;
  $('refresh').click();await until(()=>!$('refresh').disabled);
  assert.equal($('pay-currency').value,'sgd');
- for(const option of document.querySelectorAll('[data-amaze-option]')){
-  assert.equal(option.closest('details'),null);assert.match(option.textContent,/4 miles \/ S\$/);
+ for(const option of document.querySelectorAll('[data-card-id="amaze"]')){
+  assert.equal(option.closest('details'),null);assert.match(option.textContent,/4miles \/ S\$/);
   assert.match(option.textContent,/minimum S\$0.50/);
  }
- assert.equal(document.querySelectorAll('[data-amaze-option]').length,3);
+ assert.equal(document.querySelectorAll('[data-card-id="amaze"]').length,3);
+ for(const method of methods()){
+  const rows=[...document.querySelectorAll(`[data-payment-method="${method}"] .ranked-card`)];
+  assert.equal(rows.length,5);
+  for(const row of rows){assert.equal(row.closest('details'),null);assert.equal(row.hidden,false);assert.ok(row.querySelector('.card-miles'));assert.ok(row.querySelector('.card-fee'));}
+ }
  const currencyCalls=calls,currencyCache=localStorage.getItem('pocket-miles-personal-v3');
  $('pay-currency').value='foreign';event('pay-currency','change');
  assert.equal(calls,currencyCalls);assert.equal(localStorage.getItem('pocket-miles-personal-v3'),currencyCache);
@@ -98,23 +103,33 @@ test('connect, compare checkout methods, save merchant, recall name, edit route 
  for(const method of methods()){
   assert.equal(card(method),'Amaze + Citi Rewards');
   const option=document.querySelector(`[data-payment-method="${method}"]`);
-  assert.match(option.querySelector('.payment-fee').textContent,/2.1%/);
-  assert.match(option.querySelector('.no-fx-alternative').textContent,/Trust Freedom/);
-  assert.equal(option.querySelector('.no-fx-alternative').closest('details'),null);
+  assert.match(option.querySelector('.card-fee').textContent,/2.1%/);
+  assert.match(option.querySelector('[data-card-id=trust]').textContent,/Trust Freedom/);
+  assert.equal(option.querySelector('[data-card-id=trust]').closest('details'),null);
   assert.match(option.querySelector('.checkout-note').textContent,/Amaze card/);
  }
  input('pay-amount','100');
- assert.equal(document.querySelector('[data-payment-method="tap"] .reward-number').firstChild.textContent,'≈ 400');
+ assert.equal(document.querySelector('[data-payment-method="tap"] .card-miles').firstChild.textContent,'≈ 400');
  assert.match(document.querySelector('[data-payment-method="tap"]').textContent,/S\$2\.10/);
  row.currency='foreign';
  server.data.settings.cards=['citi','trust'];server.data.settings.citiRemaining=0;server.data.settings.citiUpdated=new Date().toISOString();server.revision++;
  $('refresh').click();await until(()=>!$('refresh').disabled);
  assert.equal(card('tap'),'Trust Freedom');
- assert.equal(document.querySelector('.no-fx-alternative'),null);
+ assert.equal(document.querySelectorAll('[data-payment-method=tap] .ranked-card').length,3);
  server.data.settings.amaze=false;server.revision++;
  $('refresh').click();await until(()=>!$('refresh').disabled);
- assert.equal(document.querySelectorAll('[data-amaze-option]').length,0);
+ assert.equal(document.querySelectorAll('[data-card-id="amaze"]').length,0);
  assert.match($('result').textContent,/Amaze \+ Citi Rewards is not enabled/);
+ // Excluded payments keep the entire wallet on screen, with no fabricated winner.
+ input('merchant-search','AXS');
+ assert.equal(document.querySelectorAll('.ranked-card').length,2);
+ assert.equal(document.querySelector('.top-card'),null);
+ for(const option of document.querySelectorAll('.ranked-card')){
+  assert.equal(option.closest('details'),null);assert.match(option.textContent,/No miles assumed/);
+  assert.equal(option.querySelector('.card-miles').firstChild.textContent,'≈ 0');
+ }
+ assert.doesNotMatch($('result').textContent,/NaN/);
+ input('merchant-search',displaySaved(row));
  // Stored HTML-looking merchant data must remain text.
  document.querySelector('[data-edit-current]').click();input('name','<img src=x onerror=alert(1)>');event('merchant-form','submit');
  await until(()=>server.data.merchants.some(m=>m.name.startsWith('<img'))&&!$('merchant-dialog').open);
@@ -122,3 +137,5 @@ test('connect, compare checkout methods, save merchant, recall name, edit route 
  $('logout').click();await until(()=>$('workspace').hidden);
  assert.equal(localStorage.length,0);
 });
+
+function displaySaved(row){return row.variant?`${row.name} · ${row.variant}`:row.name;}
