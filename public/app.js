@@ -7,7 +7,7 @@ const $=id=>document.getElementById(id);
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num=n=>new Intl.NumberFormat('en-SG',{maximumFractionDigits:2}).format(n);
 const categoryName=id=>CATEGORIES.find(c=>c.id===id)?.name||id;
-let active=null,editor=null,walletDirty=false,dirtyCaps={hsbc:false,citi:false},toastTimer,installPrompt;
+let active=null,currencyOverride=null,editor=null,walletDirty=false,dirtyCaps={hsbc:false,citi:false},toastTimer,installPrompt;
 const store=new Store(()=>{
  $('connection-text').textContent=store.message;
  $('connection-dot').classList.toggle('offline',!store.online);
@@ -27,12 +27,13 @@ function notify(message){$('toast').textContent=message;$('toast').hidden=false;
 function view(name){for(const el of document.querySelectorAll('.view'))el.hidden=el.id!==name;for(const b of document.querySelectorAll('[data-view]')){b.classList.toggle('active',b.dataset.view===name);b.setAttribute('aria-current',b.dataset.view===name?'page':'false');}if(name==='wallet'&&!walletDirty)fillWallet();window.scrollTo({top:0,behavior:'instant'});}
 function settings(){return store.data.settings||WALLET_DEFAULTS;}
 function current(){
- if(active)return active;
  const text=$('merchant-search').value,p=parseQuery(text);
- return p.category?{name:queryName(text),variant:'',category:p.category,method:p.method||CATEGORIES.find(c=>c.id===p.category).method,currency:'sgd',uobExcluded:p.uobExcluded,onlineWallet:false,confidence:'guess',notes:''}:null;
+ const m=active||(p.category?{name:queryName(text),variant:'',category:p.category,method:p.method||CATEGORIES.find(c=>c.id===p.category).method,currency:'sgd',uobExcluded:p.uobExcluded,onlineWallet:false,confidence:'guess',notes:''}:null);
+ return m?{...m,currency:currencyOverride??m.currency}:null;
 }
-function select(m){active=m;$('merchant-search').value=displayName(m);$('clear-search').hidden=false;$('matches').hidden=true;$('search-tip').textContent=m.id?'Loaded your saved details. Compare the ways to pay below.':'One-off check. This merchant has not been saved.';renderResult();}
+function select(m){active=m;currencyOverride=null;$('merchant-search').value=displayName(m);$('clear-search').hidden=false;$('matches').hidden=true;$('search-tip').textContent=m.id?'Loaded your saved details. Compare the ways to pay below.':'One-off check. This merchant has not been saved.';renderResult();}
 function search(){
+ currencyOverride=null;
  const text=$('merchant-search').value,found=matchMerchants(store.data.merchants,text),parsed=parseQuery(text);
  const literal=found.exact&&[found.exact.name,displayName(found.exact)].some(n=>normalize(n)===normalize(text));
  if(parsed.amount!==null&&!literal)$('pay-amount').value=parsed.amount;
@@ -42,14 +43,17 @@ function search(){
  $('matches').innerHTML=found.matches.slice(0,8).map(m=>`<button data-select="${esc(m.id)}"><strong>${esc(displayName(m))}</strong><span>${methodName[m.method]} · ${m.currency==='sgd'?'SGD':'Foreign currency'} · ${esc(categoryName(m.category))}</span></button>`).join('');
  $('search-tip').textContent=found.exact?'Loaded your saved details. No amount needed for a quick choice.':found.matches.length?'Choose the branch or payment route you saved.':text?'Check this purchase. Save the merchant only if you want to use it again.':'For a saved merchant, its name is all you need.';
  // Ambiguous saved routes require selection, rather than quietly using a name shortcut.
- if(found.matches.length&&!found.exact){$('amount-options').hidden=true;$('result').innerHTML='';return;}
+ if(found.matches.length&&!found.exact){$('amount-options').hidden=true;$('currency-options').hidden=true;$('result').innerHTML='';return;}
  renderResult();
 }
 function renderResult(){
  const matches=matchMerchants(store.data.merchants,$('merchant-search').value);
- if(!active&&matches.matches.length&&!matches.exact){$('amount-options').hidden=true;$('result').innerHTML='';return;}
+ if(!active&&matches.matches.length&&!matches.exact){$('amount-options').hidden=true;$('currency-options').hidden=true;$('result').innerHTML='';return;}
  const m=current(),query=$('merchant-search').value.trim(),owned=settings().cards||[];
  $('amount-options').hidden=!m;
+ $('currency-options').hidden=!m;
+ $('pay-currency').value=m?.currency||'sgd';
+ $('currency-note').textContent=currencyOverride&&m?.id?'Currency changed for this check. Edit the place if you want to save it.':'Choose the currency charged at checkout. Enter foreign amounts as their estimated SGD equivalent.';
  if(!store.ready){$('result').innerHTML='';return;}
  if(!owned.length){$('result').innerHTML='<div class="empty-card"><span aria-hidden="true">▱</span><h2>Start with your wallet.</h2><p>Select the cards you own once. Every merchant search will compare just those cards.</p><button class="primary" data-wallet>Choose my cards <span>↗</span></button></div>';return;}
  if(!m){$('result').innerHTML=query?`<div class="empty-card compact"><h2>How are you paying?</h2><p>Choose the payment details for ${esc(queryName(query)||query)} to compare your cards. Saving this merchant is optional.</p><button class="primary" data-add>Check this purchase <span>↗</span></button></div>`:'';return;}
@@ -65,20 +69,21 @@ function renderResult(){
  const warnings=[...warningMethods].map(([warning,methods])=>`<p class="warning">${methods.length<comparisons.length?`<strong>${methods.join(' / ')}:</strong> `:''}${esc(warning)}</p>`).join('');
  const amountNote=r.quick?'Rate comparison · amount optional':`S$${num(r.amount)}${r.foreign?' SGD equivalent':''} · after modelled rounding`;
  const help=comparisons.length>1?'Use the option that matches your checkout. Methods shown are suggestions; availability and bank classification can differ between the counter and a website or app.':'Showing the checkout method for this merchant or category.';
- const pairing=r.foreign&&owned.includes('citi')&&!settings().amaze?'<div class="assumption">Using Amaze with Citi Rewards? Enable the pairing in Wallet to include it here.<button class="quiet" data-wallet>Review Amaze pairing ↗</button></div>':'';
+ const pairing=!owned.includes('citi')||!settings().amaze?'<div class="assumption"><strong>Amaze + Citi Rewards is not enabled.</strong> Select Citi Rewards and enable the pairing in Wallet.<button class="quiet" data-wallet>Review Amaze pairing ↗</button></div>':!r.amaze?'<p class="assumption">Amaze + Citi Rewards is not compared for this category because of its reward exclusions.</p>':'';
  $('result').innerHTML=context+`<div class="comparison-heading"><h2>${comparisons.length>1?'Your cards, by payment method':'Your card for this checkout'}</h2><p class="fine">${esc(amountNote)}</p></div>${pairing}<div class="payment-comparisons">${comparisons.map(({method,result})=>renderPayment(method,result,m)).join('')}</div><p class="fine">${help}</p>${m.confidence!=='confirmed'?'<p class="assumption">Category is an assumption. Check the merchant’s bank classification before relying on the bonus.</p>':comparisons.length>1?'<p class="assumption">Your checked category is reused for these comparisons. A different checkout can have a different bank classification.</p>':''}${m.notes?`<p class="personal-note">${esc(m.notes)}</p>`:''}${warnings}`;
 }
 function renderPayment(method,r,m){
  const heading=`<h3 class="payment-heading">${methodName[method]}</h3>`;
  if(!r.best)return `<section class="payment-option" data-payment-method="${method}">${heading}<p class="fine">No eligible ${r.foreign?'':'fee-free '}card in your wallet for this payment.</p><button class="quiet" data-wallet>Review wallet ↗</button></section>`;
- const b=r.best,other=r.options.filter(o=>o.id!==b.id&&o.eligible).sort((a,c)=>r.quick?c.displayRate-a.displayRate:c.miles-a.miles);
+ const b=r.best,other=r.options.filter(o=>o.id!==b.id&&o.id!=='amaze'&&o.eligible).sort((a,c)=>r.quick?c.displayRate-a.displayRate:c.miles-a.miles);
  const label=r.foreign?'MOST MILES · BEFORE FX COSTS':r.quick?'YOUR DEFAULT CARD':'BEST ESTIMATE FOR THIS AMOUNT';
  const pairedRoute={tap:'Tap your Amaze card, linked to Citi Rewards Mastercard.',insert:'Insert your Amaze card, linked to Citi Rewards Mastercard.',online:'Use your Amaze card details online, linked to Citi Rewards Mastercard.'};
  const checkout=b.id==='amaze'?pairedRoute[method]:method==='online'?(m.onlineWallet?'Apple Pay / Google Pay at online checkout selected.':'Pay with the card directly online. Using Apple Pay / Google Pay at checkout? Set this in Payment details.') :'';
  const noFx=r.feeFreeAlternative;
  const fallback=noFx?`<div class="no-fx-alternative"><span class="eyebrow">NO FOREIGN TRANSACTION FEE OPTION</span><strong>${esc(noFx.name)}</strong><span>${r.quick?num(noFx.displayRate)+' miles / S$':'≈ '+num(noFx.miles)+' miles'}</span></div>`:'';
  const spread=b.id==='amaze'&&!r.quick?`<p class="checkout-note">Spread illustration at 2.1%: S$${(r.amount*.021).toFixed(2)}. Actual FX cost depends on the conversion rate.</p>`:'';
- return `<section class="payment-option" data-payment-method="${method}">${heading}<article class="recommendation"><div class="eyebrow">${label}</div><h4>${esc(b.name)}</h4><div class="reward-number">${r.quick?num(b.displayRate):'≈ '+num(b.miles)}<span>${r.quick?'miles / S$':'KrisFlyer miles'}</span></div><p class="payment-fee">${esc(b.feeLabel)}</p></article>${checkout?`<p class="checkout-note">${esc(checkout)}</p>`:''}${spread}${fallback}<details class="payment-details"><summary>Why this card & alternatives <span>＋</span></summary><p class="reason">${esc(b.reason)}${r.quick&&b.cap===0?' Its bonus allowance is used up; the rate above is the base rate.':''}</p>${other.map(o=>`<div class="alternative"><span class="card-mark ${o.color}"></span><strong>${esc(o.name)}${r.foreign?`<small>${esc(o.feeLabel)}</small>`:''}</strong><span>${r.quick?num(o.displayRate)+' miles/$':'≈ '+num(o.miles)+' miles'}</span></div>`).join('')}${r.amaze&&!r.foreign?`<div class="amaze"><strong>Amaze + Citi Rewards · ≈ ${num(r.amaze.miles)} miles</strong><p>${esc(r.amaze.feeLabel)}. Shares Citi’s bonus allowance. Compare the extra cost before choosing this route.</p></div>`:''}</details></section>`;
+ const amaze=r.amaze&&b.id!=='amaze'?`<div class="amaze" data-amaze-option><span class="eyebrow">PAIRED CARD OPTION</span><strong>Amaze + Citi Rewards</strong><p class="paired-reward">${r.quick?num(r.amaze.displayRate)+' miles / S$':'≈ '+num(r.amaze.miles)+' miles'}</p><p>${esc(r.amaze.feeLabel)}. Shares Citi’s bonus allowance.${r.amaze.cap===0?' Citi bonus allowance is used up; base miles shown.':''}</p><p>${pairedRoute[method]}</p></div>`:'';
+ return `<section class="payment-option" data-payment-method="${method}">${heading}<article class="recommendation"><div class="eyebrow">${label}</div><h4>${esc(b.name)}</h4><div class="reward-number">${r.quick?num(b.displayRate):'≈ '+num(b.miles)}<span>${r.quick?'miles / S$':'KrisFlyer miles'}</span></div><p class="payment-fee">${esc(b.feeLabel)}</p></article>${checkout?`<p class="checkout-note">${esc(checkout)}</p>`:''}${spread}${fallback}${amaze}<details class="payment-details"><summary>Why this card & alternatives <span>＋</span></summary><p class="reason">${esc(b.reason)}${r.quick&&b.cap===0?' Its bonus allowance is used up; the rate above is the base rate.':''}</p>${other.map(o=>`<div class="alternative"><span class="card-mark ${o.color}"></span><strong>${esc(o.name)}${r.foreign?`<small>${esc(o.feeLabel)}</small>`:''}</strong><span>${r.quick?num(o.displayRate)+' miles/$':'≈ '+num(o.miles)+' miles'}</span></div>`).join('')}</details></section>`;
 }
 function renderLists(){
  const all=[...store.data.merchants].sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)),q=normalize($('places-search').value);
@@ -118,6 +123,7 @@ $('merchant-search').addEventListener('input',search);
 $('merchant-search').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();search();}});
 $('clear-search').addEventListener('click',()=>{active=null;$('merchant-search').value='';$('pay-amount').value='';search();$('merchant-search').focus();});
 $('pay-amount').addEventListener('input',renderResult);
+$('pay-currency').addEventListener('change',()=>{currencyOverride=$('pay-currency').value;renderResult();});
 $('places-search').addEventListener('input',renderLists);
 $('new-merchant').addEventListener('click',()=>openEditor(null,{save:true}));$('places-add').addEventListener('click',()=>openEditor(null,{save:true}));
 $('result').addEventListener('click',e=>{if(e.target.closest('[data-wallet]'))view('wallet');if(e.target.closest('[data-add]'))openEditor();if(e.target.closest('[data-edit-current]'))openEditor(current());if(e.target.closest('[data-save-current]'))openEditor(current(),{save:true});});

@@ -62,8 +62,8 @@ test('stale and unknown Citi caps disclose the assumption instead of treating it
  }
 });
 
-test('local SGD keeps the fee-free default and shows Amaze as a paid alternative only when useful',()=>{
- assert.equal(pay({currency:'sgd'}).best.id,'trust');assert.equal(pay({currency:'sgd'}).amaze,null);
+test('local SGD keeps the fee-free default but always exposes the enabled eligible Amaze option',()=>{
+ assert.equal(pay({currency:'sgd'}).best.id,'trust');assert.equal(pay({currency:'sgd'}).amaze.displayRate,4);
  const paid=pay({currency:'sgd',amount:20});assert.equal(paid.best.id,'trust');assert.equal(paid.amaze.fee,.5);
- const exhausted=pay({currency:'sgd',amount:100},{...wallet,citiRemaining:0});assert.equal(exhausted.amaze,null);
+ const exhausted=pay({currency:'sgd',amount:100},{...wallet,citiRemaining:0});assert.equal(exhausted.amaze.displayRate,.4);assert.equal(exhausted.amaze.miles,40);
 });
