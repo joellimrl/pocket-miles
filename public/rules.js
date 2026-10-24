@@ -119,11 +119,13 @@ export function evaluate(input,settings=DEFAULT_SETTINGS,now=new Date().toISOStr
  if(hsbcAllow.stale||citiAllow.stale)warnings.push('A saved allowance is from an earlier period. Refresh it before relying on the estimate.');
  if(hb&&hc<amount&&!hsbcAllow.unknown)warnings.push('Part of this purchase exceeds your HSBC bonus allowance and earns only base points.');
  if(cb&&cc<rounded&&!citiAllow.unknown)warnings.push('Part of this purchase exceeds your Citi bonus allowance and earns only base points.');
- if(foreign)warnings.push('Recommendation prioritises no foreign transaction fee. Amount must be the estimated SGD equivalent. Bank-card FX charges are not estimated; pay in the merchant’s currency, not a merchant-converted SGD amount.');
+ if(foreign)warnings.push('Use the estimated SGD equivalent for the amount. Actual SGD charges and miles vary with the conversion rate. Bank FX charges are not calculated; the Amaze spread is not an exact cost comparison against Trust.');
  if(cat.review)warnings.push('Verify the medical MCC and payment route before paying. Government and other excluded classifications will earn no rewards.');
  if(cat.id==='mrt')warnings.push('This estimate is for a combined posted BUS/MRT charge, not an individual ride. Use the same card/device to tap in and out.');
  if(input.uobExcluded)warnings.push('UOB is excluded for this payment. Merchant exclusions can override its headline rate.');
  if(cat.id==='sia')warnings.push('Keep S$1,000 of qualifying SIA / Scoot / KrisShop spend on UOB each membership year to maintain its category bonus. The highest immediate earn estimate does not track that annual target.');
  if(best&&best.miles===0)warnings.push('This amount earns no miles on the recommended eligible route under its rounding rules.');
- return {status:'ok',category:cat,best,options,amaze:amaze&&(!best||amaze.miles>best.miles+.01)?amaze:null,warnings,amount,foreign};
+ // Expose every eligible Amaze route; wallet-aware ranking decides whether it
+ // beats the user's actual cards after caps and rounding.
+ return {status:'ok',category:cat,best,options,amaze,warnings,amount,foreign};
 }

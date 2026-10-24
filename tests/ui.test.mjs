@@ -80,6 +80,29 @@ test('connect, compare checkout methods, save merchant, recall name, edit route 
  row.method='insert';server.revision++;
  $('refresh').click();await until(()=>!$('refresh').disabled);
  assert.equal(card('insert'),'Trust Freedom');
+ // Foreign comparisons must include Amaze before an amount is entered, and
+ // make its spread and the fee-free alternative visible outside disclosure.
+ row.currency='foreign';server.data.settings.amaze=true;server.revision++;
+ $('refresh').click();await until(()=>!$('refresh').disabled);
+ for(const method of methods()){
+  assert.equal(card(method),'Amaze + Citi Rewards');
+  const option=document.querySelector(`[data-payment-method="${method}"]`);
+  assert.match(option.querySelector('.payment-fee').textContent,/2.1%/);
+  assert.match(option.querySelector('.no-fx-alternative').textContent,/Trust Freedom/);
+  assert.equal(option.querySelector('.no-fx-alternative').closest('details'),null);
+  assert.match(option.querySelector('.checkout-note').textContent,/Amaze card/);
+ }
+ input('pay-amount','100');
+ assert.equal(document.querySelector('[data-payment-method="tap"] .reward-number').firstChild.textContent,'≈ 400');
+ assert.match(document.querySelector('[data-payment-method="tap"]').textContent,/S\$2\.10/);
+ server.data.settings.cards=['citi','trust'];server.data.settings.citiRemaining=0;server.data.settings.citiUpdated=new Date().toISOString();server.revision++;
+ $('refresh').click();await until(()=>!$('refresh').disabled);
+ assert.equal(card('tap'),'Trust Freedom');
+ assert.equal(document.querySelector('.no-fx-alternative'),null);
+ server.data.settings.amaze=false;server.revision++;
+ $('refresh').click();await until(()=>!$('refresh').disabled);
+ assert.doesNotMatch($('result').textContent,/Amaze \+ Citi Rewards/);
+ assert.match($('result').textContent,/Enable the pairing in Wallet/);
  // Stored HTML-looking merchant data must remain text.
  document.querySelector('[data-edit-current]').click();input('name','<img src=x onerror=alert(1)>');event('merchant-form','submit');
  await until(()=>server.data.merchants.some(m=>m.name.startsWith('<img'))&&!$('merchant-dialog').open);
