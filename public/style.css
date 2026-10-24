@@ -10,3 +10,6 @@ dialog{background:var(--paper);color:var(--ink);border:1px solid var(--line);bor
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
 
 .place{display:flex;gap:10px;border-bottom:1px solid var(--line);padding:18px 0}.place-body{flex:1;text-align:left;min-width:0}.place-body .eyebrow{display:block;font-size:8px;margin-bottom:7px}.place-body strong{display:block;font-size:14px}.place-body small{font-size:10px;margin-top:6px}.place-actions{display:flex;align-items:center;gap:12px}.place-actions button{font-size:11px;min-height:44px}
+
+.merchant-actions{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0}
+@media(max-width:420px){.merchant-line{flex-wrap:wrap;gap:8px}.merchant-actions{align-items:flex-start}}

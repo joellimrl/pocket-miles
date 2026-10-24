@@ -96,7 +96,7 @@ A new protected collection named pocketMiles sits inside the existing StreetBot 
 
 Wallet settings include selected card IDs; Amaze usage; HSBC/Citi remaining allowances and their timestamps; Citi reset date; UOB qualification and membership-year information; Trust Miles mode; and a settings save timestamp.
 
-Each merchant has an ID, name, branch/route label, category, payment method, currency choice, UOB/online-wallet exception flags, confirmation status, notes and creation/update timestamps. The model limits the book to 500 entries and validates lengths, known card/category values, booleans, dates and allowance ranges. Duplicate IDs or duplicate name/label/method/currency entries are rejected. Unknown fields are stripped.
+Each merchant has an ID, name, branch/route label, category, payment method, currency choice, UOB/online-wallet exception flags, confirmation status, notes and creation/update timestamps. The model limits the book to 500 explicitly saved entries and validates lengths, known card/category values, booleans, dates and allowance ranges. Duplicate IDs or duplicate name/label/method/currency entries are rejected. Unknown fields are stripped. The limit does not count searches or one-off purchase checks. Those checks run only in the browser and make no notebook request. The Save to my places option is required to persist new payment details; no backend change or collection migration is needed for one-off checks.
 
 No card numbers, CVVs, bank login details or bank transaction feeds are stored. Typing an amount is a calculation input, not a recorded purchase. The app does not maintain a spending ledger or automatically consume bonus allowances.
 

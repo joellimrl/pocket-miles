@@ -1,6 +1,6 @@
 # Pocket Miles
 
-A personal Singapore credit-card companion with its own repository and GitHub Pages release. Save your cards and merchant details once, then type a merchant name for a recommendation. Install it on your phone’s home screen.
+A personal Singapore credit-card companion with its own repository and GitHub Pages release. Save your cards, then type a merchant name for a recommendation. Check one-off purchases without saving; keep the merchants you want to reuse. Install it on your phone’s home screen.
 
 **Status:** app and backend remain under review; this repository has not published a live app.
 
@@ -37,6 +37,7 @@ The 90-day keys can be revoked individually through the bot reply. Disconnecting
 
 - Pay, Places and Wallet screens; optional amount for more precise estimates.
 - HSBC Revolution, Citi Rewards, KrisFlyer UOB and Trust Freedom, with optional Amaze routing.
+- One-off purchase checks with an optional Save to my places checkbox. New purchase checks default to not saving; explicit Add/Save actions and editing a saved place default to saving.
 - Saved merchant category, branch/route, payment method, currency, notes and confirmation status.
 - Separate branch and online entries; ambiguous matches require selection.
 - JSON export/import and cached offline lookups after a successful connection.
@@ -44,7 +45,7 @@ The 90-day keys can be revoked individually through the bot reply. Disconnecting
 
 Rules are a snapshot dated 23 October 2026, with sources linked inside the app. They are not automatically updated. Suggestions for new merchants are assumptions, not live MCC lookup. Bonus allowances are manual and searches do not deduct spending. Fee-free payment/FX routes are prioritised; transfer fees, merchant surcharges, fuel discounts and promotional targets are outside the ranking.
 
-This is a single-owner app, with up to 500 saved merchant entries. It has no bank account connection and never needs card numbers.
+This is a single-owner app, with up to 500 explicitly saved merchant entries. The limit does not count searches or one-off checks. One-off details live only in page memory: they are not written to the notebook, local cache or backup, and disappear when the page is reloaded or another merchant is selected. A full saved list still allows one-off checks and edits to existing entries. After a successful wallet load, one-off checks also work offline; saving requires a connection. It has no bank account connection and never needs card numbers.
 
 ## Source and builds
 
@@ -63,6 +64,6 @@ Edit public/rules.js and its source links/date, then update boundary tests in te
 
 For a new card, category or schema value, also update the corresponding Streetbot feat/pocketMiles/shared modules. They are copies of these three browser modules with their relative import extensions changed from .js to .mjs. Pure reward-rate changes affect browser recommendations; schema additions need the matching backend deployed first.
 
-The 28 tests use local mocks and a DOM harness. Actual phone installation and authenticated cross-device MongoDB sync still require post-deployment checks.
+The 34 tests use local mocks and a DOM harness, including checks that one-off purchases do not persist, work offline and still work at the saved-place limit. Actual phone installation and authenticated cross-device MongoDB sync still require post-deployment checks.
 
 GitHub Pages uses the documented [custom workflow deployment](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).

@@ -1,6 +1,6 @@
 import {CATEGORIES,CHECKED,SOURCES,parseQuery} from './rules.js';
 import {CARDS,WALLET_DEFAULTS,recommend} from './recommend.js';
-import {displayName,matchMerchants,queryName,normalize,validateNotebook} from './merchants.js';
+import {displayName,matchMerchants,queryName,normalize,validateMerchant,validateNotebook,MAX_MERCHANTS} from './merchants.js';
 import {Store} from './store.js';
 const $=id=>document.getElementById(id);
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -15,7 +15,8 @@ const store=new Store(()=>{
  $('login').hidden=!store.locked;
  $('workspace').hidden=!store.ready||store.locked;
  $('navigation').hidden=!store.ready||store.locked;
- $('wallet-save').disabled=$('merchant-save').disabled=!store.online||store.busy;
+ $('wallet-save').disabled=!store.online||store.busy;
+ updateMerchantAction();
  $('logout').hidden=store.preview;
  if(active?.id)active=store.data.merchants.find(m=>m.id===active.id)||null;
  if(!walletDirty)fillWallet();
@@ -29,7 +30,7 @@ function current(){
  const text=$('merchant-search').value,p=parseQuery(text);
  return p.category?{name:queryName(text),variant:'',category:p.category,method:p.method||CATEGORIES.find(c=>c.id===p.category).method,currency:'sgd',uobExcluded:p.uobExcluded,onlineWallet:false,confidence:'guess',notes:''}:null;
 }
-function select(m){active=m;$('merchant-search').value=displayName(m);$('clear-search').hidden=false;$('matches').hidden=true;$('search-tip').textContent='Loaded your saved details. Your default card is ready below.';renderResult();}
+function select(m){active=m;$('merchant-search').value=displayName(m);$('clear-search').hidden=false;$('matches').hidden=true;$('search-tip').textContent=m.id?'Loaded your saved details. Your default card is ready below.':'One-off check. This merchant has not been saved.';renderResult();}
 function search(){
  const text=$('merchant-search').value,found=matchMerchants(store.data.merchants,text),parsed=parseQuery(text);
  const literal=found.exact&&[found.exact.name,displayName(found.exact)].some(n=>normalize(n)===normalize(text));
@@ -38,7 +39,7 @@ function search(){
  $('clear-search').hidden=!text;
  $('matches').hidden=!!found.exact||!found.matches.length;
  $('matches').innerHTML=found.matches.slice(0,8).map(m=>`<button data-select="${esc(m.id)}"><strong>${esc(displayName(m))}</strong><span>${methodName[m.method]} · ${m.currency==='sgd'?'SGD':'Foreign currency'} · ${esc(categoryName(m.category))}</span></button>`).join('');
- $('search-tip').textContent=found.exact?'Loaded your saved details. No amount needed for a quick choice.':found.matches.length?'Choose the branch or payment route you saved.':text?'New merchant: confirm its payment details once, then save.':'For a saved merchant, its name is all you need.';
+ $('search-tip').textContent=found.exact?'Loaded your saved details. No amount needed for a quick choice.':found.matches.length?'Choose the branch or payment route you saved.':text?'Check this purchase. Save the merchant only if you want to use it again.':'For a saved merchant, its name is all you need.';
  // Ambiguous saved routes require selection, rather than quietly using a name shortcut.
  if(found.matches.length&&!found.exact){$('amount-options').hidden=true;$('result').innerHTML='';return;}
  renderResult();
@@ -50,9 +51,9 @@ function renderResult(){
  $('amount-options').hidden=!m;
  if(!store.ready){$('result').innerHTML='';return;}
  if(!owned.length){$('result').innerHTML='<div class="empty-card"><span aria-hidden="true">▱</span><h2>Start with your wallet.</h2><p>Select the cards you own once. Every merchant search will compare just those cards.</p><button class="primary" data-wallet>Choose my cards <span>↗</span></button></div>';return;}
- if(!m){$('result').innerHTML=query?`<div class="empty-card compact"><h2>Let’s remember this one.</h2><p>Add ${esc(queryName(query)||query)} and choose its payment category. You only need to do this once.</p><button class="primary" data-add>Add merchant details <span>＋</span></button></div>`:'';return;}
+ if(!m){$('result').innerHTML=query?`<div class="empty-card compact"><h2>How are you paying?</h2><p>Choose the payment details for ${esc(queryName(query)||query)} to compare your cards. Saving this merchant is optional.</p><button class="primary" data-add>Check this purchase <span>↗</span></button></div>`:'';return;}
  const r=recommend({...m,amount:$('pay-amount').value},settings());
- const context=`<div class="merchant-line"><div><strong>${esc(displayName(m))}</strong><small>${esc(categoryName(m.category))} · ${methodName[m.method]} · ${m.currency==='sgd'?'SGD':'Foreign currency'}</small></div><button class="quiet" data-edit-current>${m.id?'Edit':'Save details'}</button></div>`;
+ const context=`<div class="merchant-line"><div><strong>${esc(displayName(m))}</strong><small>${esc(categoryName(m.category))} · ${methodName[m.method]} · ${m.currency==='sgd'?'SGD':'Foreign currency'}</small><small>${m.id?'Saved place':'One-off · not saved'}</small></div><div class="merchant-actions"><button class="quiet" data-edit-current>${m.id?'Edit':'Payment details'}</button>${m.id?'':'<button class="quiet" data-save-current>Save to my places ＋</button>'}</div></div>`;
  if(r.status==='amount'){$('result').innerHTML=context+`<p class="warning">${esc(r.message)}</p>`;return;}
  if(r.status==='excluded'){$('result').innerHTML=context+`<div class="empty-card compact"><h2>No rewards route assumed.</h2><p>${esc(r.message)}</p></div>`;return;}
  if(!r.best){$('result').innerHTML=context+'<div class="empty-card compact"><h2>No eligible fee-free route in your wallet.</h2><p>Check your selected cards, card modes and merchant category.</p><button class="quiet" data-wallet>Review wallet ↗</button></div>';return;}
@@ -63,6 +64,7 @@ function renderResult(){
 }
 function renderLists(){
  const all=[...store.data.merchants].sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)),q=normalize($('places-search').value);
+ $('merchant-count').textContent=`${all.length} of ${MAX_MERCHANTS} saved places. One-off checks don’t use a slot.`;
  $('recent-list').innerHTML=all.slice(0,6).map(m=>`<button class="recent" data-select="${esc(m.id)}"><span class="place-icon" aria-hidden="true">↗</span><div><strong>${esc(displayName(m))}</strong><small>${methodName[m.method]} · ${esc(categoryName(m.category))}</small></div><span aria-hidden="true">→</span></button>`).join('')||'<p class="fine empty-list">Your saved places will appear here.</p>';
  const filtered=all.filter(m=>!q||normalize(displayName(m)).includes(q));
  $('places-list').innerHTML=filtered.map(m=>`<article class="place"><button class="place-body" data-select="${esc(m.id)}"><span class="eyebrow">${m.confidence==='confirmed'?'CHECKED BY YOU':'CATEGORY TO CONFIRM'}</span><strong>${esc(displayName(m))}</strong><small>${esc(categoryName(m.category))} · ${methodName[m.method]}</small></button><div class="place-actions"><button data-edit="${esc(m.id)}">Edit</button><button data-delete="${esc(m.id)}">Delete</button></div></article>`).join('')||'<p class="fine empty-list">No saved places here yet. Add a merchant from Pay.</p>';
@@ -73,13 +75,23 @@ function fillWallet(){
  $('wallet-amaze').checked=!!s.amaze;$('hsbc-cap').value=s.hsbcRemaining??'';$('citi-cap').value=s.citiRemaining??'';$('citi-reset').value=s.citiResetDate||'';$('uob-qualified').checked=!!s.uobQualified;$('trust-miles').checked=!!s.trustMiles;dirtyCaps={hsbc:false,citi:false};
 }
 function categoryHelp(){$('category-help').textContent=CATEGORIES.find(c=>c.id===$('category').value)?.note||'Choose the merchant’s payment classification, rather than the item you bought.';}
-function openEditor(m=null){
+function updateMerchantAction(){
+ const full=!editor?.existing&&store.data.merchants.length>=MAX_MERCHANTS;
+ $('remember-merchant').disabled=full;
+ if(full)$('remember-merchant').checked=false;
+ const save=$('remember-merchant').checked;
+ $('merchant-save').textContent=save?(editor?.existing?'Save changes & show card':'Save & show card'):'Show best card';
+ $('merchant-save').disabled=!store.ready||store.locked||(save&&(!store.online||store.busy));
+ $('remember-help').textContent=full?`All ${MAX_MERCHANTS} saved slots are in use. You can still check this purchase without saving, or delete a place to free a slot.`:save?(!store.online?'Reconnect to save. Uncheck this option to check without saving.':editor?.existing?'Updates this saved place on your devices.':'Saves these details for next time on your devices.'):'Check only: these details stay on this screen and aren’t added to your saved places.';
+}
+function openEditor(m=null,{save=!!m?.id}={}){
  editor={id:m?.id||crypto.randomUUID(),createdAt:m?.createdAt||new Date().toISOString(),existing:!!m?.id};
  const value=m||{name:queryName($('merchant-search').value),category:'',method:'tap',currency:'sgd'};
- $('merchant-title').textContent=editor.existing?'Edit this place.':'Remember this place.';
+ $('merchant-title').textContent=editor.existing?'Edit this place.':'Check this purchase.';
  for(const key of ['name','variant','category','method','currency','notes'])$(key).value=value[key]||'';
  $('confidence').value=value.confidence||'guess';$('uob-excluded').checked=!!value.uobExcluded;$('online-wallet').checked=!!value.onlineWallet;
- $('merchant-copy').hidden=!editor.existing;$('merchant-error').textContent='';categoryHelp();$('merchant-dialog').showModal();
+ $('remember-merchant').checked=save;
+ $('merchant-copy').hidden=!editor.existing;$('merchant-error').textContent='';categoryHelp();updateMerchantAction();$('merchant-dialog').showModal();
 }
 $('rules-date').textContent=CHECKED;
 $('category').innerHTML='<option value="">Choose a category…</option>'+CATEGORIES.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
@@ -89,8 +101,8 @@ $('merchant-search').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preven
 $('clear-search').addEventListener('click',()=>{active=null;$('merchant-search').value='';$('pay-amount').value='';search();$('merchant-search').focus();});
 $('pay-amount').addEventListener('input',renderResult);
 $('places-search').addEventListener('input',renderLists);
-$('new-merchant').addEventListener('click',()=>openEditor());$('places-add').addEventListener('click',()=>openEditor());
-$('result').addEventListener('click',e=>{if(e.target.closest('[data-wallet]'))view('wallet');if(e.target.closest('[data-add]'))openEditor();if(e.target.closest('[data-edit-current]'))openEditor(current());});
+$('new-merchant').addEventListener('click',()=>openEditor(null,{save:true}));$('places-add').addEventListener('click',()=>openEditor(null,{save:true}));
+$('result').addEventListener('click',e=>{if(e.target.closest('[data-wallet]'))view('wallet');if(e.target.closest('[data-add]'))openEditor();if(e.target.closest('[data-edit-current]'))openEditor(current());if(e.target.closest('[data-save-current]'))openEditor(current(),{save:true});});
 document.body.addEventListener('click',async e=>{
  const b=e.target.closest('[data-select],[data-edit],[data-delete],[data-view],[data-seed]');if(!b)return;
  if(b.dataset.view){view(b.dataset.view);return;}
@@ -101,12 +113,25 @@ document.body.addEventListener('click',async e=>{
  if(b.dataset.delete&&confirm(`Delete ${displayName(m)} from your synced merchant book?`)){try{await store.save(data=>({...data,merchants:data.merchants.filter(row=>row.id!==m.id)}));if(active?.id===m.id){active=null;$('merchant-search').value='';renderResult();}notify('Merchant deleted.');}catch(err){notify(err.message);}}
 });
 $('category').addEventListener('change',categoryHelp);
-$('merchant-copy').addEventListener('click',()=>{editor={id:crypto.randomUUID(),createdAt:new Date().toISOString(),existing:false};$('variant').value='';$('merchant-copy').hidden=true;$('merchant-title').textContent='Add another route.';$('variant').focus();});
+$('remember-merchant').addEventListener('change',()=>{$('merchant-error').textContent='';updateMerchantAction();});
+$('merchant-copy').addEventListener('click',()=>{editor={id:crypto.randomUUID(),createdAt:new Date().toISOString(),existing:false};$('variant').value='';$('merchant-copy').hidden=true;$('merchant-title').textContent='Check another route.';$('remember-merchant').checked=true;updateMerchantAction();$('variant').focus();});
 $('merchant-form').addEventListener('submit',async e=>{
  e.preventDefault();const m={id:editor.id,createdAt:editor.createdAt,updatedAt:new Date().toISOString()};
  for(const key of ['name','variant','category','method','currency','notes','confidence'])m[key]=$(key).value;
  m.uobExcluded=$('uob-excluded').checked;m.onlineWallet=$('online-wallet').checked;
- try{await store.save(data=>({...data,merchants:[...data.merchants.filter(row=>row.id!==m.id),m]}));select(store.data.merchants.find(row=>row.id===m.id));$('merchant-dialog').close();view('pay');notify('Merchant saved. Next time, just type its name.');}catch(err){$('merchant-error').textContent=err.message;}
+ try{
+  const checked=validateMerchant(m),save=$('remember-merchant').checked;
+  if(!store.ready||store.locked)throw new Error('Load your wallet before checking a purchase.');
+  if(save){
+   await store.save(data=>({...data,merchants:[...data.merchants.filter(row=>row.id!==checked.id),checked]}));
+   select(store.data.merchants.find(row=>row.id===checked.id));
+  }else{
+   // Keep one-off details in memory only. No notebook write or saved-record identity.
+   const {id,createdAt,updatedAt,...purchase}=checked;
+   select(purchase);
+  }
+  $('merchant-dialog').close();view('pay');notify(save?'Merchant saved. Next time, just type its name.':'Card checked. Merchant not saved.');
+ }catch(err){$('merchant-error').textContent=err.message;}
 });
 $('wallet-form').addEventListener('input',e=>{walletDirty=true;if(e.target.id==='hsbc-cap')dirtyCaps.hsbc=true;if(e.target.id==='citi-cap')dirtyCaps.citi=true;});
 $('wallet-form').addEventListener('submit',async e=>{

@@ -39,7 +39,7 @@ test('connect, select wallet, save merchant, recall name, edit route and disambi
  await until(()=>server.data.settings.cards.length===4&&$('pay').hidden===false);
  input('merchant-search','Guardian');assert.match($('result').textContent,/HSBC Revolution/);
  const callsBefore=calls;input('merchant-search','Guardian');assert.equal(calls,callsBefore,'typing needs no API request');
- document.querySelector('[data-edit-current]').click();
+ document.querySelector('[data-save-current]').click();
  assert.equal($('category').value,'pharmacy');input('variant','Tampines');event('merchant-form','submit');
  await until(()=>server.data.merchants.length===1&&!$('merchant-dialog').open);
  assert.equal($('pay-amount').value,'');assert.match($('result').textContent,/YOUR DEFAULT CARD/);
