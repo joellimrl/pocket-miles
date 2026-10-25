@@ -48,3 +48,17 @@ test('service worker refreshes shell assets and activates early only on the upda
  events.message({data:{type:'unrelated'},waitUntil:p=>pending=p});assert.equal(skips,0);
  events.message({data:{type:'SKIP_WAITING'},waitUntil:p=>pending=p});await pending;assert.equal(skips,1);
 });
+
+test('foreign-reference links reuse the offline HTML without caching API or external requests',async()=>{
+ const events={},matched=[];
+ const self={registration:{scope:'https://joellimrl.github.io/pocket-miles/'},addEventListener:(name,handler)=>events[name]=handler};
+ const caches={open:async()=>({match:async key=>{matched.push(key);return new Response('cached guide');}})};
+ vm.runInNewContext(await readFile(new URL('../public/sw.js',import.meta.url),'utf8'),{self,caches,URL,Request});
+ let pending;
+ events.fetch({request:new Request('https://joellimrl.github.io/pocket-miles/detailed.html?currency=foreign'),respondWith:p=>pending=p});
+ assert.equal(await (await pending).text(),'cached guide');
+ assert.deepEqual(matched,['https://joellimrl.github.io/pocket-miles/detailed.html']);
+ for(const url of ['https://streetbot.fly.dev/pocket-miles/notebook','https://example.com/pocket-miles/detailed.html?currency=foreign']){
+  events.fetch({request:new Request(url),respondWith:()=>assert.fail('Private/external requests must not be intercepted')});
+ }
+});
