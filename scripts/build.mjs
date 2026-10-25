@@ -18,7 +18,8 @@ await mkdir(destination);
 const assets = [
   'index.html', 'style.css', 'app.js', 'store.js', 'device.js', 'rules.js', 'merchants.js',
   'recommend.js', 'payments.js', 'baseline.js', 'baseline-ui.js', 'sw.js', 'manifest.webmanifest', 'icon.svg', 'icon-192.png',
-  'icon-512.png', 'icon-maskable.png', 'update.html', 'update.js', 'updater.js'
+  'icon-512.png', 'icon-maskable.png', 'update.html', 'update.js', 'updater.js',
+  'quick.html', 'quick.css', 'quick.js'
 ];
 for (const asset of assets) {
   await copyFile(path.join(root, 'public', asset), path.join(destination, asset));
