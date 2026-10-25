@@ -7,8 +7,15 @@ const $=id=>document.getElementById(id);
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num=n=>new Intl.NumberFormat('en-SG',{maximumFractionDigits:2}).format(n);
 const categoryName=id=>CATEGORIES.find(c=>c.id===id)?.name||id;
-let active=null,currencyOverride=null,editor=null,walletDirty=false,dirtyCaps={hsbc:false,citi:false},toastTimer,installPrompt;
+let active=null,currencyOverride=null,editor=null,walletDirty=false,dirtyCaps={hsbc:false,citi:false},toastTimer,installPrompt,lastProfile=null;
 const store=new Store(()=>{
+ const profileId=store.profile?.id||null;
+ if(lastProfile!==profileId){
+  active=null;currencyOverride=null;editor=null;walletDirty=false;
+  $('merchant-search').value='';$('pay-amount').value='';$('places-search').value='';$('matches').hidden=true;$('search-tip').hidden=true;
+  for(const dialog of document.querySelectorAll('dialog[open]'))dialog.close();
+  lastProfile=profileId;
+ }
  $('connection-text').textContent=store.message;
  $('connection-dot').classList.toggle('offline',!store.online);
  $('refresh').disabled=store.busy;
@@ -18,7 +25,8 @@ const store=new Store(()=>{
  $('wallet-save').disabled=!store.online||store.busy;
  updateMerchantAction();
  $('logout').hidden=store.preview;
- $('device-status').textContent=store.preview?'Local preview · no device pairing':store.deviceName?`Connected as ${store.deviceName} · no automatic expiry. Manage connections with /pocket devices in Telegram.`:'';
+ $('profile-status').textContent=store.profile?`Profile: ${store.profile.name}`:'';
+ $('device-status').textContent=store.preview?'Local preview · no device pairing':store.deviceName?`${store.deviceName} · no automatic expiry. The app owner manages connections in Telegram.`:'';
  if(active?.id)active=store.data.merchants.find(m=>m.id===active.id)||null;
  if(!walletDirty)fillWallet();
  renderLists();renderResult();
@@ -183,6 +191,7 @@ $('logout').addEventListener('click',async()=>{try{await store.lock();active=nul
 $('refresh').addEventListener('click',async()=>{if(walletDirty||document.querySelector('dialog[open]')){if(!confirm('Discard your unsaved form changes and load the latest saved details?'))return;walletDirty=false;for(const d of document.querySelectorAll('dialog[open]'))d.close();}await store.load();search();});
 let lastFocus=0;window.addEventListener('focus',()=>{if(Date.now()-lastFocus>30000&&!document.querySelector('dialog[open]')&&!walletDirty){lastFocus=Date.now();store.load();}});
 window.addEventListener('online',()=>{if(!walletDirty&&!document.querySelector('dialog[open]'))store.load();});
+window.addEventListener('storage',event=>{if(event.key==='pocket-miles-device-key'||event.key===null)store.connectionChanged();});
 $('export').addEventListener('click',()=>{const blob=new Blob([JSON.stringify(store.data,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='pocket-miles-backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);});
 $('import').addEventListener('click',()=>$('import-file').click());
 $('import-file').addEventListener('change',async()=>{const file=$('import-file').files[0];if(!file)return;try{if(file.size>700000)throw new Error('Backup is too large.');const incoming=validateNotebook(JSON.parse(await file.text()));if(!confirm(`Replace your current wallet and merchant book with this backup (${incoming.merchants.length} places)? Export a backup first if you want to retain the current version.`))return;await store.save(()=>incoming);active=null;walletDirty=false;fillWallet();notify('Backup restored.');}catch(err){notify(err.message);}finally{$('import-file').value='';}});
