@@ -7,12 +7,12 @@ globalThis.localStorage={getItem:k=>values.get(k)||null,setItem:(k,v)=>values.se
 const {Store}=await import('../public/store.js');
 const {WALLET_DEFAULTS}=await import('../public/recommend.js');
 const key='sb_'+'1'.repeat(16)+'_'+'a'.repeat(43);
-const initial=()=>({data:{version:1,merchants:[],settings:{...WALLET_DEFAULTS,cards:['trust']}},revision:1});
+const initial=()=>({profile:{id:"owner",name:"Owner"},data:{version:1,merchants:[],settings:{...WALLET_DEFAULTS,cards:['trust']}},revision:1});
 test('connect, persist, offline cache, conflict protection and revoke recovery',async()=>{
  let server=initial(),mode='ok',calls=0;
  globalThis.fetch=async(url,options)=>{
   calls++;assert.match(options.headers.Authorization,/^PocketDevice /);
-  if(url.endsWith('/device'))return Response.json({name:JSON.parse(options.body).name,expiresAt:null});
+  if(url.endsWith('/device'))return Response.json({name:JSON.parse(options.body).name,expiresAt:null,profile:{id:"owner",name:"Owner"}});
   assert.equal(url,'https://streetbot.fly.dev/pocket-miles/notebook');
   assert.equal(options.headers['X-Auth'],key);assert.equal(options.credentials,'omit');
   if(mode==='offline')throw new TypeError('Mock network unavailable');
@@ -20,7 +20,7 @@ test('connect, persist, offline cache, conflict protection and revoke recovery',
   if(options.method==='PUT'){
    const input=JSON.parse(options.body);
    if(input.revision!==server.revision)return Response.json({error:'Another device saved changes'},{status:409});
-   server={data:input.data,revision:server.revision+1};
+   server={...server,data:input.data,revision:server.revision+1};
   }
   return Response.json(server);
  };

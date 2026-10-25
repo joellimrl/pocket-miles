@@ -1,6 +1,6 @@
 # Pocket Miles backend changes
 
-This document describes the proposed Streetbot changes in [backend PR #1](https://github.com/joellimrl/streetBot/pull/1). They remain undeployed while under review.
+The original Streetbot integration is live. This document includes the invite-only profile upgrade: one private wallet per profile, served by the same Fly service and MongoDB collection.
 
 ## Responsibilities
 
@@ -36,11 +36,11 @@ The credential registry, scrypt implementation, key revocation handler, rate lim
 3. In the app, the owner names the browser (for example, iPhone Safari) and pastes the setup key. The browser generates an ECDSA P-256 key pair using Web Crypto. Its private key is non-extractable and is saved as a CryptoKey in IndexedDB before contacting the backend.
 4. POST /pocket-miles/device presents the setup credential, public key, browser name and a signature proving possession of the private key. An atomic update binds the credential to the first successful browser, records its public key/fingerprint/name/pairing date, and sets expiresAt to null.
 5. The connection now has no automatic expiry. Another browser cannot rebind it or use a copied setup credential alone. Retrying pairing from the original browser is safe after a lost response. The paired credential continues to use the same opaque secret in X-Auth, now combined with a required browser signature.
-6. The owner repeats /pocket for another browser. All paired browsers use the same notebook and can be revoked independently. /pocket devices lists active paired/pending connections, each with its own revoke action.
+6. The owner repeats /pocket for another browser. All paired browsers assigned to the same profile use the same notebook and can be revoked independently. /pocket devices lists active paired/pending connections, each with its own revoke action.
 
 A notebook request has both X-Auth and Authorization: PocketDevice <timestamp>.<nonce>.<signature>. The signature covers a versioned purpose, credential ID, HTTP method, route, timestamp, random nonce and SHA-256 digest of the JSON body (null for GET). Signatures use ECDSA with SHA-256 and IEEE P1363 encoding. Proofs outside a 90-second clock window are rejected. An atomic per-credential nonce claim prevents replay across concurrent requests and Fly instances; old proof records are pruned on subsequent requests. This is an application-specific proof format, not an implementation of the DPoP standard.
 
-The existing Express middleware still validates the secret, active status, expiry, consumer, endpoint grant and scope before the feature checks the browser signature. Newly issued Pocket Miles credentials allow only pairing plus notebook reads/writes. Unpaired credentials cannot access the notebook. Other authorised admin/legacy integrations retain their existing semantics.
+The existing Express middleware still validates the secret, active status, expiry, consumer, endpoint grant and scope before the feature checks the browser signature. Newly issued Pocket Miles credentials allow only pairing plus notebook reads/writes for their assigned profile. Unpaired credentials cannot access the notebook. Other authorised admin/legacy integrations retain their existing semantics.
 
 Raw setup secrets and private signing keys never enter MongoDB, URLs, public source or backups. The opaque credential is remembered in localStorage; its signing key and browser label live in IndexedDB. The backend stores only the public signing key. These are browser-profile credentials, not hardware attestation or a guarantee against device/profile cloning. Non-extractability prevents JavaScript key export, but same-origin code can still ask the key to sign. All pages on joellimrl.github.io share an origin; a separate custom origin would provide stronger separation from other projects. Browser data deletion/eviction, a new browser profile or an installation with separate storage requires pairing again. See the [Web Crypto key-storage specification](https://www.w3.org/TR/WebCryptoAPI/#key-storage).
 
@@ -55,19 +55,30 @@ They do not grant Spotify, calendar, generic storage, Telegram-send or LLM acces
 
 Revocation uses the existing owner-only callback and stops future server access by that credential. Expired pending keys and revoked connections are handled by the existing cleanup job; a paired expiresAt:null credential does not expire. Disconnecting in the app removes that browser's local credential, signing key and cache; use /pocket devices to revoke the server record too. Revocation cannot remotely erase an offline cache. An online 401/403 clears the browser's cached access/data.
 
+## Invite-only profiles and migration
+
+- `/pocket` issues an owner key as before. `/pocket create spouse` atomically creates an empty profile and issues a setup key; duplicate creation never replaces its data. `/pocket connect spouse` issues an additional key, `/pocket profiles` lists profiles, and `/pocket devices spouse` filters connections. These commands require the existing owner’s sender and private-chat IDs. Other users do not gain Streetbot access.
+- New Pocket Miles credentials carry `pocketProfileId`. The credential store validates and retains this field only for that consumer. The paired browser cannot change it. Credential verification attaches the server-selected profile to the request before notebook handlers run.
+- Existing credentials with no profile field continue to use `owner`; invalid explicit fields fail closed. Existing admin/legacy access remains restricted to the owner notebook. There is no bulk credential or notebook rewrite, environment change, or new database collection.
+- Added profile records are created only by the owner command, with empty cards and merchants. The owner document remains `_id: "owner"`; new documents use `profile:<id>`. Per-profile writes retain optimistic revision checks. No owner data is copied to another profile.
+- Pairing and notebook responses include `profile: {id, name}`. The app shows this name, checks pairing/notebook agreement, clears prior forms and data during a change, and binds its offline cache to the credential ID. Old unbound caches are not reused; existing devices need one online load after updating before offline use.
+- Each browser profile holds one active connection. A connection change in another tab locks stale state and prevents delayed responses from overwriting the active cache. Backups contain wallet data only and importing explicitly copies into the current profile.
+- Deploy the backend first, then the frontend. Before rolling back to a single-owner backend, revoke every non-owner credential; the old handlers would otherwise route those keys into the owner notebook. Rollback does not require deleting profile documents. The owner controls the server and database; application profile separation does not hide data from the service administrator.
+
 ## API contract
 
 The base address is https://streetbot.fly.dev.
 
 | Request | Result |
 | --- | --- |
-| POST /pocket-miles/device | Accepts {publicKey, name} with setup credential and browser proof; returns {name, keyId, expiresAt:null}. First binding is atomic; same-key retry is idempotent. |
-| GET /pocket-miles/notebook | Returns the complete saved notebook and its revision. An uninitialised notebook returns empty defaults at revision 0. |
+| POST /pocket-miles/device | Accepts {publicKey, name} with setup credential and browser proof; returns {name, keyId, expiresAt:null, profile:{id,name}}. First binding is atomic; same-key retry is idempotent. |
+| GET /pocket-miles/notebook | Returns the credential’s saved notebook, revision and profile descriptor. An uninitialised notebook returns empty defaults at revision 0. |
 | PUT /pocket-miles/notebook | Accepts the entire replacement notebook plus the revision the device last read. Validates it, saves conditionally, and returns the new revision. |
 
-Request/response shape:
+Response shape (PUT sends only `data` and `revision`; the server supplies `profile`):
 
     {
+      "profile": { "id": "owner", "name": "Owner" },
       "data": {
         "version": 1,
         "settings": { "...": "wallet settings" },
@@ -86,7 +97,7 @@ CORS already permits https://joellimrl.github.io and the X-Auth/Authorization he
 
 ## MongoDB data
 
-A new protected collection named pocketMiles sits inside the existing StreetBot database. It stores one document:
+A new protected collection named pocketMiles sits inside the existing StreetBot database. The owner retains its existing document. Additional profiles use `_id: "profile:<id>"` and an immutable `profile: {id, name}` descriptor. Each has its own data, revision and timestamps. The existing owner document is:
 
     {
       "_id": "owner",
@@ -113,9 +124,9 @@ The app loads the notebook when connecting/opening and refreshes on explicit ref
 
 Example: phone and computer both load revision 4. The phone saves revision 5. The computer's later attempt to save based on revision 4 is rejected with 409. The app asks for a refresh/review instead of overwriting the phone's changes.
 
-MongoDB updates match both the fixed document ID and expected revision, then increment the revision atomically. Initial creation uses the unique _id to allow only one competing first save. Each save replaces the complete notebook; this is not per-merchant patching or automatic conflict merging.
+MongoDB updates match both the authenticated profile’s document ID and expected revision, then increment the revision atomically. Initial creation uses the unique _id to allow only one competing first save. Each save replaces the complete notebook; this is not per-merchant patching or automatic conflict merging.
 
-After a successful load the browser keeps a local copy for offline recommendations. Offline edits are not queued; saving requires reconnection. This model is intentionally a single-owner notebook, not multiple isolated user accounts.
+After a successful load the browser keeps a local copy for offline recommendations. Offline edits are not queued; saving requires reconnection. Notebooks are isolated per profile. The server resolves the profile from the verified credential, not a body, query or URL selector. The service owner administers profile creation and device revocation.
 
 ## Impact and deployment
 
@@ -135,6 +146,6 @@ Before rolling back to code that does not enforce browser signatures, revoke all
 
 Bank rewards and merchant recognition remain frontend-maintained rules. Keeping merchant data does not automatically detect bank changes. Shared card/category/schema values also exist in the backend validator, so new supported values must be deployed to the backend before a frontend starts saving them.
 
-The backend's 24 targeted tests cover nine notebook/command cases, eight browser-identity cases and seven existing auth configuration/revocation cases. They use local injected storage and Telegram boundaries and check that live db.js was not loaded. They cover first reads/saves, stale versions, concurrent first writes, malformed data, scoped policies, owner-only issuance, hashing/expiry, pairing races, copied setup keys, signed request tampering/replay, connection revocation, escaped device names and failed message delivery.
+The backend’s 32 targeted tests cover nine notebook/command cases, eight browser-identity cases and seven existing auth configuration/revocation cases. They use local injected storage and Telegram boundaries and check that live db.js was not loaded. They cover first reads/saves, stale versions, concurrent first writes, malformed data, scoped policies, owner-only issuance, hashing/expiry, pairing races, copied setup keys, signed request tampering/replay, connection revocation, escaped device names and failed message delivery.
 
-The standalone app has 39 isolated recommendation, validation, sync/store, browser-key storage and DOM tests. Real Web Crypto signing is exercised with mocked IndexedDB persistence; it is not a Safari/Chrome installation test. None are proof of production Telegram/MongoDB wiring or actual phone installation; those are post-deployment checks. Tests do not start the bot or its jobs.
+The standalone app has 66 isolated recommendation, validation, sync/store, browser-key storage and DOM tests. Real Web Crypto signing is exercised with mocked IndexedDB persistence; it is not a Safari/Chrome installation test. None are proof of production Telegram/MongoDB wiring or actual phone installation; those are post-deployment checks. Tests do not start the bot or its jobs.

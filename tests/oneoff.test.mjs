@@ -19,7 +19,7 @@ test('one-off purchase checks are separate from saved places',async t=>{
  for(const key of ['window','document','location','localStorage','navigator'])Object.defineProperty(globalThis,key,{value:window[key],configurable:true});
  globalThis.confirm=()=>true;
  localStorage.setItem('pocket-miles-device-key','sb_'+'2'.repeat(16)+'_'+'b'.repeat(43));
- let server={data:{version:1,merchants:[],settings:{...WALLET_DEFAULTS,cards:CARDS.map(c=>c.id),uobQualified:true}},revision:0};
+ let server={profile:{id:"owner",name:"Owner"},data:{version:1,merchants:[],settings:{...WALLET_DEFAULTS,cards:CARDS.map(c=>c.id),uobQualified:true}},revision:0};
  let calls=0,writes=0,offline=false;
  globalThis.fetch=async(_url,options)=>{
   calls++;
@@ -27,7 +27,7 @@ test('one-off purchase checks are separate from saved places',async t=>{
   if(options.method==='PUT'){
    writes++;const input=JSON.parse(options.body);
    if(input.revision!==server.revision)return Response.json({error:'Conflict'},{status:409});
-   server={data:validateNotebook(input.data),revision:server.revision+1};
+   server={...server,data:validateNotebook(input.data),revision:server.revision+1};
   }
   return Response.json(server);
  };

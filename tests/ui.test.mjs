@@ -16,14 +16,14 @@ test('connect, compare checkout methods, save merchant, recall name, edit route 
  window.HTMLDialogElement.prototype.close=function(){this.removeAttribute('open');};
  for(const key of ['window','document','location','localStorage','navigator'])Object.defineProperty(globalThis,key,{value:window[key],configurable:true});
  globalThis.confirm=()=>true;
- let server={data:{version:1,merchants:[],settings:{...WALLET_DEFAULTS}},revision:0},calls=0;
+ let server={profile:{id:"owner",name:"Owner"},data:{version:1,merchants:[],settings:{...WALLET_DEFAULTS}},revision:0},calls=0;
  globalThis.fetch=async(_url,options)=>{
   calls++;
-  if(options.method==='POST')return Response.json({name:JSON.parse(options.body).name,expiresAt:null});
+  if(options.method==='POST')return Response.json({name:JSON.parse(options.body).name,expiresAt:null,profile:{id:"owner",name:"Owner"}});
   if(options.method==='PUT'){
    const data=JSON.parse(options.body);
    if(data.revision!==server.revision)return Response.json({error:'Conflict'},{status:409});
-   server={data:data.data,revision:server.revision+1};
+   server={...server,data:data.data,revision:server.revision+1};
   }
   return Response.json(server);
  };
@@ -40,6 +40,7 @@ test('connect, compare checkout methods, save merchant, recall name, edit route 
  for(const checkbox of document.querySelectorAll('input[name=card]')){checkbox.checked=true;checkbox.dispatchEvent(new window.Event('input',{bubbles:true}));}
  $('uob-qualified').checked=true;event('wallet-form','input');event('wallet-form','submit');
  await until(()=>server.data.settings.cards.length===4&&$('pay').hidden===false);
+ assert.equal($('profile-status').textContent,'Profile: Owner');
  const methods=()=>[...document.querySelectorAll('[data-payment-method]')].map(el=>el.dataset.paymentMethod);
  const cell=(method,id)=>document.querySelector(`tr[data-card-id="${id}"] [data-method="${method}"]`);
  const card=method=>document.querySelector(`.best-cell[data-method="${method}"]`)?.closest('tr').querySelector('.matrix-card-name').textContent;
@@ -151,6 +152,18 @@ test('connect, compare checkout methods, save merchant, recall name, edit route 
  assert.equal(document.querySelector('#result img'),null);
  $('logout').click();await until(()=>$('workspace').hidden);
  assert.equal(localStorage.length,0);
+ server={profile:{id:'spouse',name:'Spouse'},data:{version:1,merchants:[],settings:{...WALLET_DEFAULTS,cards:['trust']}},revision:0};
+ // Pair response must identify the same profile as the notebook response.
+ const previousFetch=globalThis.fetch;
+ globalThis.fetch=async(url,options)=>options.method==='POST'?Response.json({name:'Spouse phone',expiresAt:null,profile:server.profile}):previousFetch(url,options);
+ input('password','sb_'+'3'.repeat(16)+'_'+'c'.repeat(43));event('login-form','submit');
+ await until(()=>$('workspace').hidden===false);
+ assert.equal($('profile-status').textContent,'Profile: Spouse');
+ assert.equal($('merchant-search').value,'');assert.equal($('places-search').value,'');
+ assert.doesNotMatch($('places-list').textContent,/Guardian|<img/);
+ input('merchant-search','Guardian');assert.equal(document.querySelectorAll('.card-matrix tbody tr').length,1);
+ assert.equal(document.querySelector('.card-matrix tbody tr').dataset.cardId,'trust');
+ $('logout').click();await until(()=>$('workspace').hidden);
 });
 
 function displaySaved(row){return row.variant?`${row.name} · ${row.variant}`:row.name;}

@@ -43,9 +43,9 @@ test('lost pairing response can retry with the stored identity and reload withou
    pairCalls++;const body=JSON.parse(options.body);
    if(paired)assert.deepEqual(body.publicKey,paired.publicKey);else paired=body;
    if(dropResponse){dropResponse=false;throw new Error('Response lost after server paired');}
-   return Response.json({name:body.name,expiresAt:null});
+   return Response.json({name:body.name,expiresAt:null,profile:{id:"owner",name:"Owner"}});
   }
-  return Response.json({data:{version:1,merchants:[],settings:WALLET_DEFAULTS},revision:0});
+  return Response.json({profile:{id:"owner",name:"Owner"},data:{version:1,merchants:[],settings:WALLET_DEFAULTS},revision:0});
  };
  const store=new Store(()=>{});
  await assert.rejects(store.unlock(credential,'Laptop Chrome'),/Cannot reach/);
