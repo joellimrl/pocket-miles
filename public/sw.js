@@ -1,4 +1,4 @@
-const CACHE='pocket-miles-shell-v3.6.1';
+const CACHE='pocket-miles-shell-v3.6.2';
 const ASSETS=['./','./index.html','./style.css','./app.js','./store.js','./device.js','./rules.js','./merchants.js','./recommend.js','./payments.js','./baseline.js','./baseline-ui.js','./quick.html','./quick.css','./quick.js','./manifest.webmanifest','./icon.svg','./icon-192.png','./icon-512.png','./icon-maskable.png'].map(path=>new URL(path,self.registration.scope).href);
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS.map(url=>new Request(url,{cache:'reload'})))));});
 self.addEventListener('message',event=>{if(event.data?.type==='SKIP_WAITING')event.waitUntil(self.skipWaiting());});

@@ -75,7 +75,7 @@ History files use `format: "pocket-miles-merchant-baseline"`, `version: 1`, a re
 - .github/workflows/checks.yml: tests and builds pull requests.
 - .github/workflows/pages.yml: publishes only when manually run on main.
 
-Only dist/ is uploaded to Pages. Tooling, tests, node_modules, local data and documentation are excluded. Relative asset URLs and the manifest scope support the /pocket-miles/ project path. Use Update app in the footer, or open https://joellimrl.github.io/pocket-miles/update.html to load a new release. This uncached entry updates and activates the app's service worker, then returns to Pay; it never clears device credentials, IndexedDB or the notebook. Shell downloads bypass the browser HTTP cache. App v3.6.1 is shown in the footer. Existing tabs are not forcibly reloaded; reopen them after saving any forms.
+Only dist/ is uploaded to Pages. Tooling, tests, node_modules, local data and documentation are excluded. Relative asset URLs and the manifest scope support the /pocket-miles/ project path. Use Update app in the footer, or open https://joellimrl.github.io/pocket-miles/update.html to load a new release. This uncached entry updates and activates the app's service worker, then returns to Pay; it never clears device credentials, IndexedDB or the notebook. Shell downloads bypass the browser HTTP cache. App v3.6.2 is shown in the footer. Existing tabs are not forcibly reloaded; reopen them after saving any forms.
 
 ## Maintaining card rules
 
