@@ -56,6 +56,7 @@ Deploy the profile-aware backend before this frontend. Never roll the backend ba
 - Saved merchant category, branch/route, payment method, currency, notes and confirmation status.
 - Separate branch and online entries; ambiguous matches require selection.
 - JSON export/import and cached offline lookups after a successful connection.
+- Places → Add from history accepts a prepared merchant-baseline JSON file. Review the checkboxes, category, default method and charged currency before adding anything. The preview is local; only selected merchant records are saved to the connected profile. Existing merchants and wallet settings are preserved. Repeated imports skip matching record IDs, routes, names and supplied aliases. All imported history suggestions remain unconfirmed.
 - Sync on load, eligible refresh/focus/reconnection, and save. Searches run locally. Saves require a live connection and conflicting revisions are rejected.
 
 Rules are a snapshot dated 23 October 2026, with sources linked inside the app. They are not automatically updated. Suggestions for new merchants are assumptions, not live MCC lookup. Checkout methods are suggested from the merchant name and category, not live acceptance data. Each comparison reuses the selected category, currency and exclusions; a merchant can code differently online, so save a separate route if you have confirmed different details. Saved payment preferences do not hide other applicable comparisons, and viewing comparisons never writes extra merchant entries. The online-wallet exception applies only to online checkout, not tapping a phone. Bonus allowances are manual and searches do not deduct spending. Both SGD and foreign-currency comparisons rank all selected cards by estimated miles, including the enabled Amaze + Citi Rewards Mastercard pairing. Costs never hide or demote a higher-mile card. Caps, exclusions and rounding can change the order; this is not a net-value calculation. Equal miles favour no added fee, then the disclosed Amaze spread over an unmodelled bank FX charge. Transfer fees, merchant surcharges, fuel discounts and promotional targets are outside the ranking.
@@ -64,6 +65,8 @@ Profiles are invite-only: the bot owner creates a separate wallet with /pocket c
 
 ## Source and builds
 
+History files use `format: "pocket-miles-merchant-baseline"`, `version: 1`, a required `profileId`, `source`, `asOf` date and `candidates`. Each candidate contains a schema-valid `merchant`, history-entry `count`, `lastSeen` date, `suggested` checkbox default and `aliases` used only to detect existing saved names. A file for a different profile is rejected. This is a local-file merge workflow, not an automatic CSV feed or transaction tracker. The browser does not infer charged currency, MCC or payment channel from spending labels. Raw CSVs, personal baseline files and generation outputs must remain outside this repository and the published `dist/` directory. The existing protected notebook endpoint and schema handle the selected records; no backend deployment or database migration is needed.
+
 - public/: browser application and service worker.
 - scripts/preview.mjs: local-only development server.
 - scripts/build.mjs: explicit public-asset allowlist copied to dist/.
@@ -71,7 +74,7 @@ Profiles are invite-only: the bot owner creates a separate wallet with /pocket c
 - .github/workflows/checks.yml: tests and builds pull requests.
 - .github/workflows/pages.yml: publishes only when manually run on main.
 
-Only dist/ is uploaded to Pages. Tooling, tests, node_modules, local data and documentation are excluded. Relative asset URLs and the manifest scope support the /pocket-miles/ project path. Use Update app in the footer, or open https://joellimrl.github.io/pocket-miles/update.html to load a new release. This uncached entry updates and activates the app's service worker, then returns to Pay; it never clears device credentials, IndexedDB or the notebook. Shell downloads bypass the browser HTTP cache. App v3.5.0 is shown in the footer. Existing tabs are not forcibly reloaded; reopen them after saving any forms.
+Only dist/ is uploaded to Pages. Tooling, tests, node_modules, local data and documentation are excluded. Relative asset URLs and the manifest scope support the /pocket-miles/ project path. Use Update app in the footer, or open https://joellimrl.github.io/pocket-miles/update.html to load a new release. This uncached entry updates and activates the app's service worker, then returns to Pay; it never clears device credentials, IndexedDB or the notebook. Shell downloads bypass the browser HTTP cache. App v3.6.0 is shown in the footer. Existing tabs are not forcibly reloaded; reopen them after saving any forms.
 
 ## Maintaining card rules
 

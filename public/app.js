@@ -3,14 +3,16 @@ import {CARDS,WALLET_DEFAULTS} from './recommend.js';
 import {PAYMENT_NAMES as methodName,comparePayments} from './payments.js';
 import {displayName,matchMerchants,queryName,normalize,validateMerchant,validateNotebook,MAX_MERCHANTS} from './merchants.js';
 import {Store} from './store.js';
+import {setupBaselineImport} from './baseline-ui.js';
 const $=id=>document.getElementById(id);
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num=n=>new Intl.NumberFormat('en-SG',{maximumFractionDigits:2}).format(n);
 const categoryName=id=>CATEGORIES.find(c=>c.id===id)?.name||id;
-let active=null,currencyOverride=null,editor=null,walletDirty=false,dirtyCaps={hsbc:false,citi:false},toastTimer,installPrompt,lastProfile=null;
+let active=null,currencyOverride=null,editor=null,walletDirty=false,dirtyCaps={hsbc:false,citi:false},toastTimer,installPrompt,lastProfile=null,baselineImport;
 const store=new Store(()=>{
  const profileId=store.profile?.id||null;
  if(lastProfile!==profileId){
+  baselineImport?.clear();
   active=null;currencyOverride=null;editor=null;walletDirty=false;
   $('merchant-search').value='';$('pay-amount').value='';$('places-search').value='';$('matches').hidden=true;$('search-tip').hidden=true;
   for(const dialog of document.querySelectorAll('dialog[open]'))dialog.close();
@@ -24,6 +26,7 @@ const store=new Store(()=>{
  $('navigation').hidden=!store.ready||store.locked;
  $('wallet-save').disabled=!store.online||store.busy;
  updateMerchantAction();
+ baselineImport?.refresh();
  $('logout').hidden=store.preview;
  $('profile-status').textContent=store.profile?`Profile: ${store.profile.name}`:'';
  $('device-status').textContent=store.preview?'Local preview · no device pairing':store.deviceName?`${store.deviceName} · no automatic expiry. The app owner manages connections in Telegram.`:'';
@@ -31,6 +34,7 @@ const store=new Store(()=>{
  if(!walletDirty)fillWallet();
  renderLists();renderResult();
 });
+baselineImport=setupBaselineImport({store,notify,onImported:()=>view('places')});
 function notify(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,5000);}
 function view(name){for(const el of document.querySelectorAll('.view'))el.hidden=el.id!==name;for(const b of document.querySelectorAll('[data-view]')){b.classList.toggle('active',b.dataset.view===name);b.setAttribute('aria-current',b.dataset.view===name?'page':'false');}if(name==='wallet'&&!walletDirty)fillWallet();window.scrollTo({top:0,behavior:'instant'});}
 function settings(){return store.data.settings||WALLET_DEFAULTS;}
