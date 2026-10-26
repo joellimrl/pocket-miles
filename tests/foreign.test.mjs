@@ -62,8 +62,14 @@ test('stale and unknown Citi caps disclose the assumption instead of treating it
  }
 });
 
-test('local SGD ranks Amaze by miles while keeping its fee visible',()=>{
- assert.equal(pay({currency:'sgd'}).best.id,'amaze');assert.equal(pay({currency:'sgd'}).amaze.displayRate,4);
- const paid=pay({currency:'sgd',amount:20});assert.equal(paid.best.id,'amaze');assert.equal(paid.amaze.fee,.5);
- const exhausted=pay({currency:'sgd',amount:100},{...wallet,citiRemaining:0});assert.equal(exhausted.amaze.displayRate,.4);assert.equal(exhausted.amaze.miles,40);
+test('SGD hides Amaze across routes and caps without disabling the foreign pairing',()=>{
+ const settings={...wallet};
+ for(const citiRemaining of [0,20,1000])for(const amount of ['',20,100]){
+  for(const {result:r} of comparePayments({...merchant,currency:'sgd'},amount,{...settings,citiRemaining},now)){
+   assert.equal(r.amaze,null);assert.equal(r.options.some(o=>o.id==='amaze'),false);
+   assert.equal(r.warnings.some(w=>/Amaze/.test(w)),false);
+  }
+ }
+ assert.equal(settings.amaze,true);
+ assert.equal(pay({},settings).best.id,'amaze');
 });

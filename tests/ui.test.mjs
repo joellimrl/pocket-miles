@@ -92,18 +92,18 @@ test('connect, compare checkout methods, save merchant, recall name, edit route 
  $('refresh').click();await until(()=>!$('refresh').disabled);
  assert.equal($('pay-currency').value,'sgd');
  const table=document.querySelector('.card-matrix');
- assert.equal(table.querySelectorAll('tbody tr').length,5);
+ assert.equal(table.querySelectorAll('tbody tr').length,4);
  assert.equal(table.querySelectorAll('thead [scope=col]').length,4);
  assert.equal(table.closest('details'),null);
  assert.equal(document.querySelector('.comparison-details').open,false);
  assert.equal($('recents').hidden,true);assert.equal($('quick-categories').hidden,true);
  assert.equal(document.querySelector('#pay .hero'),null);
  for(const method of methods()){
-  assert.equal(cell(method,'amaze').querySelector('.matrix-miles').textContent,'4');
-  assert.equal(document.querySelectorAll(`td[data-method="${method}"]`).length,5);
+  assert.equal(cell(method,'amaze'),null);
+  assert.equal(document.querySelectorAll(`td[data-method="${method}"]`).length,4);
  }
- assert.match(table.querySelector('[data-card-id=amaze]').textContent,/1% · min \$0.50/);
- assert.equal(card('tap'),'Amaze + Citi');assert.equal(card('online'),'Citi Rewards');
+ assert.equal(table.querySelector('[data-card-id=amaze]'),null);
+ assert.equal(card('tap'),'HSBC Revolution');assert.equal(card('online'),'Citi Rewards');
  const currencyCalls=calls,currencyCache=localStorage.getItem('pocket-miles-personal-v3');
  $('pay-currency').value='foreign';event('pay-currency','change');
  assert.equal(calls,currencyCalls);assert.equal(localStorage.getItem('pocket-miles-personal-v3'),currencyCache);
@@ -113,6 +113,10 @@ test('connect, compare checkout methods, save merchant, recall name, edit route 
  assert.match(document.querySelector('tr[data-card-id=amaze] .matrix-fee').textContent,/2.1% FX/);
  assert.match(document.querySelector('tr[data-card-id=trust] .matrix-fee').textContent,/No FX fee/);
  assert.match($('amount-label').textContent,/equivalent/);
+ $('pay-currency').value='sgd';event('pay-currency','change');
+ assert.equal(document.querySelector('[data-card-id=amaze]'),null);
+ assert.equal(server.data.settings.amaze,true);
+ $('pay-currency').value='foreign';event('pay-currency','change');
  input('pay-amount','100');
  assert.equal(cell('tap','amaze').querySelector('.matrix-miles').textContent,'400');
  assert.match(document.querySelector('.comparison-details').textContent,/S\$2\.10/);
@@ -137,6 +141,7 @@ test('connect, compare checkout methods, save merchant, recall name, edit route 
  server.data.settings.amaze=true;server.data.settings.trustMiles=false;server.revision++;
  $('refresh').click();await until(()=>!$('refresh').disabled);
  input('merchant-search','hotel');
+ $('pay-currency').value='foreign';event('pay-currency','change');
  for(const method of methods()){
   assert.match(cell(method,'amaze').textContent,/—Not estimated/);
   assert.match(cell(method,'trust').textContent,/0Mode off/);

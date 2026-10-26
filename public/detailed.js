@@ -21,7 +21,8 @@ function renderCategory(sheet){
   }
   return `<section><h3 class="card-${row.id}">${esc(row.name)}</h3><ul>${[...grouped].map(([reason,routes])=>`<li><strong>${esc(routes.join(' / '))}:</strong> ${esc(reason)}</li>`).join('')}</ul>${row.rounding?`<p class="rounding">${esc(row.rounding)}</p>`:''}</section>`;
  }).join('');
- const onlineNote=comparisons.some(c=>c.route==='wallet')?'<p>Online Google / Apple Pay rates for HSBC and UOB assume a qualifying online indicator and merchant category. Amaze + Citi assumes the reported pairing qualifies even when Amaze is selected in the wallet; its fees still apply.</p>':'';
+ const amazeNote=rows.some(row=>row.id==='amaze')?' Amaze + Citi assumes the reported pairing qualifies even when Amaze is selected in the wallet; its fees still apply.':'';
+ const onlineNote=comparisons.some(c=>c.route==='wallet')?`<p>Online Google / Apple Pay rates for HSBC and UOB assume a qualifying online indicator and merchant category.${amazeNote}</p>`:'';
  return `<article class="category-sheet" id="${category.id}"><div class="category-heading"><h2>${esc(category.name)}</h2><a href="#${category.id}" aria-label="Show only ${esc(category.name)}">↗</a></div><p class="category-meta">${esc(category.group)} · Category / MCC: ${esc(category.mcc)}</p><div class="table-wrap"><table><caption>${esc(caption)} · fees extra</caption><thead><tr><th scope="col">Card</th>${comparisons.map(c=>`<th scope="col" title="${esc(c.label)}">${esc(c.short)}${c.route==='wallet'?'<br>online':''}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table></div><p class="category-note">${esc(category.note)}</p><details class="route-details"><summary>Why each card earns this · conditions &amp; rounding</summary>${onlineNote}${reasons}</details></article>`;
 }
 
@@ -40,8 +41,9 @@ export function mountDetailed(doc,location){
    const sheets=categories.map(c=>detailedCategory(c.id,scenario));
    $('sheet-results').innerHTML=sheets.map(renderCategory).join('');
    $('sheet-results').hidden=false;$('sheet-error').hidden=true;$('sheet-error').textContent='';
-   $('sheet-status').textContent=`${sheets.length} spending ${sheets.length===1?'type':'types'} · all 4 cards + Amaze · ${scenario.amount===''?'headline rates before rounding':'amount includes modelled rounding and caps'}`;
-   $('sheet-assumptions').textContent=`Assumed bonus allowance: HSBC S$${num(Number(scenario.hsbcRemaining))}; Citi + Amaze S$${num(Number(scenario.citiRemaining))}. UOB annual condition ${scenario.uobQualified?'met':'not met'}. Trust Miles mode. ${scenario.currency==='foreign'?'SimplyGo stays in SGD.':''}`;
+   const hasAmaze=sheets.some(sheet=>sheet.rows.some(row=>row.id==='amaze'));
+   $('sheet-status').textContent=`${sheets.length} spending ${sheets.length===1?'type':'types'} · all 4 cards${hasAmaze?' + Amaze for foreign currency':''} · ${scenario.amount===''?'headline rates before rounding':'amount includes modelled rounding and caps'}`;
+   $('sheet-assumptions').textContent=`Assumed bonus allowance: HSBC S$${num(Number(scenario.hsbcRemaining))}; Citi${hasAmaze?' + Amaze':''} S$${num(Number(scenario.citiRemaining))}. UOB annual condition ${scenario.uobQualified?'met':'not met'}. Trust Miles mode. ${scenario.currency==='foreign'?'SimplyGo stays in SGD.':''}`;
   }catch(error){
    $('sheet-error').textContent=error.message;$('sheet-error').hidden=false;$('sheet-results').hidden=true;$('sheet-status').textContent='';$('sheet-assumptions').textContent='';
   }
