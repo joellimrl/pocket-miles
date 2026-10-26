@@ -82,7 +82,7 @@ function renderResult(){
   warningMethods.get(warning).push(methodName[method]);
  }
  const warnings=[...warningMethods].map(([warning,methods])=>`<p class="warning">${methods.length<comparisons.length?`<strong>${methods.join(' / ')}:</strong> `:''}${esc(warning)}</p>`).join('');
- const pairing=owned.includes('citi')&&!settings().amaze?'<p class="fine">Amaze + Citi Rewards is not enabled. <button class="quiet" data-wallet>Wallet ↗</button></p>':'';
+ const pairing=r.foreign&&owned.includes('citi')&&!settings().amaze?'<p class="fine">Amaze + Citi Rewards is not enabled. <button class="quiet" data-wallet>Wallet ↗</button></p>':'';
  const excluded=r.status==='excluded'?'<p class="comparison-alert">No miles for this category.</p>':'';
  const assumptions=m.confidence!=='confirmed'?'Category is unconfirmed. Check the merchant’s bank classification.':'Your saved category applies to every column; a different checkout may have a different bank classification.';
  $('result').innerHTML=context+excluded+renderComparison(comparisons)+`<details class="comparison-details"><summary>Fees & details</summary><p class="fine">${m.id?'Saved place':'One-off · not saved'}. ${assumptions} Checkout methods are suggestions, not live acceptance data.</p><p class="fine">Rows are ordered by each card’s highest miles across the shown methods. Highlighted cells are the top pick per method. Fees are extra; they only break ties. ${r.quick?'Remaining bonus allowance is assumed to cover your purchase. Add an amount to check caps and rounding.':'Total miles include modelled caps and rounding.'}</p>${pairing}${r.message?`<p class="warning">${esc(r.message)}</p>`:''}${m.notes?`<p class="personal-note">${esc(m.notes)}</p>`:''}${warnings}${comparisons.map(({method,result})=>renderPaymentDetails(method,result,m)).join('')}</details>`;
@@ -93,7 +93,7 @@ function renderComparison(comparisons){
  rows.sort((a,b)=>Math.max(...b.options.map(o=>score(o)??-1))-Math.max(...a.options.map(o=>score(o)??-1)));
  const labels={tap:'Tap / phone',online:'Online / app',insert:'Insert'};
  const body=rows.map(({card,options})=>{
-  const fee=card.id==='amaze'?(r.foreign?'≤2.1% FX':r.quick?'1% · min $0.50':card.eligible?`$${card.fee.toFixed(2)} fee`:'1% · min $0.50'):r.foreign?(card.id==='trust'?'No FX fee':'Bank FX fee'):'';
+  const fee=card.id==='amaze'?'≤2.1% FX':r.foreign?(card.id==='trust'?'No FX fee':'Bank FX fee'):'';
   const name=card.id==='amaze'?'Amaze + Citi':card.name;
   return `<tr data-card-id="${card.id}"><th scope="row"><span class="matrix-card-name"><i class="card-mark ${card.color}" aria-hidden="true"></i>${esc(name)}</span>${fee?`<small class="matrix-fee">${fee}</small>`:''}</th>${options.map((o,i)=>{
    const value=score(o),best=comparisons[i].result.best?.id===o.id&&value>0;

@@ -11,7 +11,7 @@ test('detailed reference retains every card across every supported category and 
  assert.deepEqual(DETAIL_CATEGORIES.map(c=>c.id).sort(),CATEGORIES.map(c=>c.id).sort());
  for(const c of DETAIL_CATEGORIES)for(const currency of ['sgd','foreign']){
   const s=sheet(c.id,{currency});
-  assert.deepEqual(s.rows.map(r=>r.id).sort(),['amaze','citi','hsbc','trust','uob']);
+  assert.deepEqual(s.rows.map(r=>r.id).sort(),currency==='foreign'&&c.id!=='mrt'?['amaze','citi','hsbc','trust','uob']:['citi','hsbc','trust','uob']);
   assert.ok(s.rows.every((row,i)=>!i||s.rows[i-1].score>=row.score));
  }
  assert.deepEqual(sheet('marketplace').comparisons.map(c=>c.route),['online','wallet']);
@@ -28,7 +28,7 @@ test('Citi general online bonus differs from wallets, while shopping bonus survi
  assert.equal(cell(dining,'hsbc','tap').displayRate,10/3);
  assert.equal(cell(dining,'hsbc','insert').displayRate,1/3);
  for(const route of ['tap','online','wallet','insert'])assert.equal(cell(sheet('fashion'),'citi',route).displayRate,4);
- assert.equal(cell(dining,'amaze','wallet').displayRate,4);
+ assert.equal(cell(sheet('dining',{currency:'foreign'}),'amaze','wallet').displayRate,4);
 });
 
 test('amounts, allowances and UOB qualification change the public scenario without hiding cards',()=>{
@@ -36,10 +36,9 @@ test('amounts, allowances and UOB qualification change the public scenario witho
  assert.equal(cell(small,'uob','tap').miles,0);
  assert.equal(cell(small,'trust','tap').miles,0);
  assert.equal(cell(small,'citi','online').miles,16);
- assert.equal(cell(small,'amaze','tap').fee,.5);
  const capped=sheet('groceries',{amount:100,citiRemaining:20});
  assert.equal(cell(capped,'citi','online').miles,112);
- assert.equal(cell(capped,'amaze','tap').miles,112);
+ assert.equal(cell(sheet('groceries',{currency:'foreign',amount:100,citiRemaining:20}),'amaze','tap').miles,112);
  assert.equal(capped.rows[0].id,'trust');
  assert.equal(cell(sheet('fashion',{citiRemaining:0}),'citi','wallet').displayRate,.4);
  assert.equal(cell(sheet('dining',{hsbcRemaining:0}),'hsbc','tap').displayRate,1/3);
@@ -52,7 +51,7 @@ test('foreign fees, unmodelled travel, exclusions and input errors remain explic
  assert.match(cell(foreign,'amaze','tap').feeLabel,/2.1%/);
  assert.match(cell(foreign,'trust','tap').feeLabel,/No foreign/);
  assert.match(cell(foreign,'hsbc','tap').feeLabel,/Bank FX/);
- assert.equal(cell(sheet('hotel'),'amaze','online').displayRate,null);
+ assert.equal(cell(sheet('hotel',{currency:'foreign'}),'amaze','online').displayRate,null);
  assert.equal(cell(sheet('bills'),'citi','online').displayRate,0);
  assert.equal(sheet('bills').comparisons[0].result.best,null);
  for(const invalid of [{amount:-1},{amount:Infinity},{amount:1000001},{citiRemaining:-1},{hsbcRemaining:1001},{currency:'usd'},{uobQualified:'yes'}])assert.throws(()=>sheet('dining',invalid));

@@ -21,8 +21,11 @@ test('public detailed sheet navigates categories, recalculates scenarios and nev
  assert.equal(value('citi','online'),'4');assert.equal(value('citi','wallet'),'0.4');
  assert.match($('sheet-results').textContent,/2.1% FX spread/);
  $('sheet-currency').value='sgd';event('sheet-currency','change');assert.equal(window.location.search,'');
- assert.match($('sheet-results').textContent,/1% SGD fee/);
+ assert.equal(window.document.querySelectorAll('[data-card=amaze]').length,0);
+ assert.equal(window.document.querySelectorAll('.category-sheet tbody tr').length,4);
+ assert.doesNotMatch($('sheet-status').textContent,/\+ Amaze/);
  $('sheet-currency').value='foreign';event('sheet-currency','change');assert.equal(window.location.search,'?currency=foreign');
+ assert.equal(window.document.querySelectorAll('[data-card=amaze]').length,1);
  $('sheet-amount').value='12.5';event('sheet-amount','input');
  assert.equal(value('uob','tap'),'24');assert.equal(value('citi','online'),'48');
  $('sheet-citi').value='0';event('sheet-citi','input');assert.equal(value('citi','online'),'4.8');
@@ -34,7 +37,11 @@ test('public detailed sheet navigates categories, recalculates scenarios and nev
  assert.equal(window.document.querySelectorAll('[data-route=tap]').length,0);
  $('sheet-category').value='all';event('sheet-category','change');
  assert.equal(window.document.querySelectorAll('.category-sheet').length,CATEGORIES.length);
- assert.equal(window.document.querySelectorAll('.category-sheet tbody tr').length,CATEGORIES.length*5);
+ assert.equal(window.document.querySelectorAll('.category-sheet tbody tr').length,CATEGORIES.length*5-1);
+ assert.equal(window.document.querySelector('#mrt [data-card=amaze]'),null);
+ $('sheet-currency').value='sgd';event('sheet-currency','change');
+ assert.equal(window.document.querySelectorAll('.category-sheet tbody tr').length,CATEGORIES.length*4);
+ assert.equal(window.document.querySelectorAll('[data-card=amaze]').length,0);
  assert.equal(window.document.querySelectorAll('th:not([scope])').length,0);
  const quick=new JSDOM(await readFile(new URL('../public/quick.html',import.meta.url),'utf8'));
  for(const link of quick.window.document.querySelectorAll('a[href*="detailed.html#"],a[href*="currency=foreign#"]'))assert.ok(CATEGORIES.some(c=>c.id===link.getAttribute('href').split('#')[1]));
