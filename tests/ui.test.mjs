@@ -46,21 +46,28 @@ test('connect, compare checkout methods, save merchant, recall name, edit route 
  const card=method=>document.querySelector(`.best-cell[data-method="${method}"]`)?.closest('tr').querySelector('.matrix-card-name').textContent;
  const beforeComparisonCalls=calls,beforeComparisonData=JSON.stringify(server);
  input('merchant-search',"McDonald's");
- assert.deepEqual(methods(),['tap','online','insert']);
+ assert.deepEqual(methods(),['tap','online','wallet','card','insert']);
+ assert.deepEqual([...document.querySelectorAll('.primary-comparison [data-payment-method]')].map(el=>el.dataset.paymentMethod),['tap','online']);
+ const other=document.querySelector('.other-methods');
+ assert.equal(other.open,false);
+ assert.deepEqual([...other.querySelectorAll('[data-payment-method]')].map(el=>el.dataset.paymentMethod),['wallet','card','insert']);
+ other.open=true;
  assert.equal(card('tap'),'KrisFlyer UOB');assert.equal(card('online'),'Citi Rewards');assert.equal(card('insert'),'KrisFlyer UOB');
  input('pay-amount','12.50');
+ assert.equal(document.querySelector('.other-methods').open,true);
  for(const method of methods())assert.equal(document.querySelectorAll(`td[data-method="${method}"]`).length,4);
  assert.equal(cell('online','citi').querySelector('.matrix-miles').textContent,'48');
+ assert.equal(cell('wallet','citi').querySelector('.matrix-miles').textContent,'4.8');
  assert.equal(calls,beforeComparisonCalls);assert.equal(JSON.stringify(server),beforeComparisonData,'comparisons never save or change a merchant');
- input('merchant-search','Shopee');assert.deepEqual(methods(),['online']);
- input('merchant-search','GrabFood');assert.deepEqual(methods(),['online']);
- input('merchant-search','McDelivery');assert.deepEqual(methods(),['online']);
- input('merchant-search','SimplyGo');assert.deepEqual(methods(),['tap']);
- input('merchant-search','taxi');assert.deepEqual(methods(),['tap','insert']);
+ input('merchant-search','Shopee');assert.deepEqual(methods(),['online','wallet']);
+ input('merchant-search','GrabFood');assert.deepEqual(methods(),['online','wallet']);
+ input('merchant-search','McDelivery');assert.deepEqual(methods(),['online','wallet']);
+ input('merchant-search','SimplyGo');assert.deepEqual(methods(),['tap','card']);
+ input('merchant-search','taxi');assert.deepEqual(methods(),['tap','card','insert']);
  input('pay-amount','-1');assert.equal(methods().length,0);assert.match($('result').textContent,/Enter an amount/);
  input('pay-amount','');
  input('merchant-search','Guardian');assert.match($('result').textContent,/HSBC Revolution/);
- assert.deepEqual(methods(),['tap','online','insert']);
+ assert.deepEqual(methods(),['tap','online','wallet','card','insert']);
  assert.equal(cell('tap','hsbc').querySelector('.matrix-miles').textContent,'3.33');
  assert.equal(cell('insert','hsbc').querySelector('.matrix-miles').textContent,'0.33');
  assert.equal(cell('tap','citi').querySelector('.matrix-miles').textContent,'0.4');
@@ -75,7 +82,7 @@ test('connect, compare checkout methods, save merchant, recall name, edit route 
  document.querySelector('[data-edit-current]').click();
  $('merchant-copy').click();input('variant','website');$('method').value='online';event('merchant-form','submit');
  await until(()=>server.data.merchants.length===2&&!$('merchant-dialog').open);
- assert.deepEqual(methods(),['tap','online','insert'],'saved online preference still shows the other methods');
+ assert.deepEqual(methods(),['tap','online','wallet','card','insert'],'saved online preference still shows the other methods');
  assert.equal(card('online'),'Citi Rewards');
  $('clear-search').click();input('merchant-search','Guardian');
  assert.equal($('matches').hidden,false);assert.equal($('result').innerHTML,'');
@@ -93,7 +100,7 @@ test('connect, compare checkout methods, save merchant, recall name, edit route 
  assert.equal($('pay-currency').value,'sgd');
  const table=document.querySelector('.card-matrix');
  assert.equal(table.querySelectorAll('tbody tr').length,4);
- assert.equal(table.querySelectorAll('thead [scope=col]').length,4);
+ assert.equal(table.querySelectorAll('thead [scope=col]').length,3);
  assert.equal(table.closest('details'),null);
  assert.equal(document.querySelector('.comparison-details').open,false);
  assert.equal($('recents').hidden,true);assert.equal($('quick-categories').hidden,true);
@@ -131,10 +138,11 @@ test('connect, compare checkout methods, save merchant, recall name, edit route 
  assert.match($('result').textContent,/Amaze \+ Citi Rewards is not enabled/);
  // Excluded payments keep the entire wallet on screen, with no fabricated winner.
  input('merchant-search','AXS');
- assert.equal(document.querySelectorAll('.card-matrix tbody tr').length,2);
+ assert.equal(document.querySelectorAll('.primary-comparison tbody tr').length,2);
  assert.equal(document.querySelector('.best-cell'),null);
+ assert.equal(document.querySelector('.primary-comparison').closest('details'),null);
  for(const option of document.querySelectorAll('.card-matrix td')){
-  assert.equal(option.closest('details'),null);assert.match(option.textContent,/Excluded/);
+  assert.match(option.textContent,/Excluded/);
   assert.equal(option.querySelector('.matrix-miles').textContent,'0');
  }
  assert.doesNotMatch($('result').textContent,/NaN/);
@@ -166,7 +174,7 @@ test('connect, compare checkout methods, save merchant, recall name, edit route 
  assert.equal($('profile-status').textContent,'Profile: Spouse');
  assert.equal($('merchant-search').value,'');assert.equal($('places-search').value,'');
  assert.doesNotMatch($('places-list').textContent,/Guardian|<img/);
- input('merchant-search','Guardian');assert.equal(document.querySelectorAll('.card-matrix tbody tr').length,1);
+ input('merchant-search','Guardian');assert.equal(document.querySelectorAll('.primary-comparison tbody tr').length,1);
  assert.equal(document.querySelector('.card-matrix tbody tr').dataset.cardId,'trust');
  $('logout').click();await until(()=>$('workspace').hidden);
 });

@@ -15,9 +15,11 @@ test('detailed reference retains every card across every supported category and 
   assert.ok(s.rows.every((row,i)=>!i||s.rows[i-1].score>=row.score));
  }
  assert.deepEqual(sheet('marketplace').comparisons.map(c=>c.route),['online','wallet']);
- assert.deepEqual(sheet('mrt',{currency:'foreign'}).comparisons.map(c=>c.route),['tap']);
+ assert.deepEqual(sheet('dining').comparisons.map(c=>c.route),['tap','online','wallet','card','insert']);
+ assert.deepEqual(sheet('dining').comparisons.filter(c=>c.primary).map(c=>c.route),['tap','online']);
+ assert.deepEqual(sheet('mrt',{currency:'foreign'}).comparisons.map(c=>c.route),['tap','card']);
  assert.equal(sheet('mrt',{currency:'foreign'}).currency,'sgd');
- assert.deepEqual(sheet('taxi').comparisons.map(c=>c.route),['tap','insert']);
+ assert.deepEqual(sheet('taxi').comparisons.map(c=>c.route),['tap','card','insert']);
 });
 
 test('Citi general online bonus differs from wallets, while shopping bonus survives each route',()=>{
@@ -26,8 +28,9 @@ test('Citi general online bonus differs from wallets, while shopping bonus survi
  assert.equal(cell(dining,'citi','wallet').displayRate,.4);
  assert.equal(cell(dining,'citi','tap').displayRate,.4);
  assert.equal(cell(dining,'hsbc','tap').displayRate,10/3);
+ assert.equal(cell(dining,'hsbc','card').displayRate,10/3);
  assert.equal(cell(dining,'hsbc','insert').displayRate,1/3);
- for(const route of ['tap','online','wallet','insert'])assert.equal(cell(sheet('fashion'),'citi',route).displayRate,4);
+ for(const route of ['tap','online','wallet','card','insert'])assert.equal(cell(sheet('fashion'),'citi',route).displayRate,4);
  assert.equal(cell(sheet('dining',{currency:'foreign'}),'amaze','wallet').displayRate,4);
 });
 
