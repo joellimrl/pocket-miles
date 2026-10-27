@@ -29,11 +29,10 @@ test('online merchants stay online even when saved with a physical preference',(
 test('each method uses its own reward calculation and recalculates amounts and caps',()=>{
  const before=JSON.stringify(merchant);
  const quick=comparePayments(merchant,'',wallet,now);
- assert.deepEqual(quick.map(p=>p.route),['tap','online','wallet','card','insert']);
- assert.deepEqual(quick.filter(p=>p.primary).map(p=>p.route),['tap','online']);
- assert.deepEqual(quick.map(p=>p.result.best.id),['uob','citi','uob','uob','uob']);
+ assert.deepEqual(quick.map(p=>p.route),['tap','wallet','online','card','insert']);
+ assert.deepEqual(quick.map(p=>p.result.best.id),['uob','uob','citi','uob','uob']);
  const amount=comparePayments(merchant,'12.50',wallet,now);
- assert.deepEqual(amount.map(p=>p.result.best.miles),[24,48,24,24,24]);
+ assert.deepEqual(amount.map(p=>p.result.best.miles),[24,24,48,24,24]);
  const exhausted={...wallet,citiRemaining:0,citiUpdated:now};
  assert.equal(comparePayments(merchant,'',exhausted,now).find(p=>p.method==='online').result.best.id,'uob');
  assert.equal(JSON.stringify(merchant),before);
@@ -53,7 +52,7 @@ test('direct online and online wallet stay distinct regardless of the saved wall
 
 test('explicit routes respect online-only merchants, transit and terminal payments',()=>{
  const routes=input=>comparePayments({...merchant,...input},'',wallet,now).map(p=>p.route);
- assert.deepEqual(routes({name:'Shopee'}),['online','wallet']);
+ assert.deepEqual(routes({name:'Shopee'}),['wallet','online']);
  assert.deepEqual(routes({category:'mrt'}),['tap','card']);
  assert.deepEqual(routes({category:'taxi'}),['tap','card','insert']);
  for(const onlineWallet of [false,true]){

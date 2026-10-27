@@ -18,11 +18,9 @@ test('public detailed sheet navigates categories, recalculates scenarios and nev
  const value=(card,route)=>window.document.querySelector(`#dining [data-card=${card}] [data-route=${route}] .value`)?.textContent;
  assert.equal($('sheet-currency').value,'foreign');assert.equal($('sheet-category').value,'dining');
  assert.equal(window.document.querySelectorAll('.category-sheet').length,1);
- assert.deepEqual([...window.document.querySelectorAll('#dining .primary-comparison thead [data-route]')].map(el=>el.dataset.route),['tap','online']);
- const other=window.document.querySelector('#dining .other-methods');
- assert.equal(other.open,false);
- assert.deepEqual([...other.querySelectorAll('thead [data-route]')].map(el=>el.dataset.route),['wallet','card','insert']);
- other.open=true;
+ assert.deepEqual([...window.document.querySelectorAll('#dining .primary-comparison thead [data-route]')].map(el=>el.dataset.route),['tap','wallet','online','card','insert']);
+ assert.equal(window.document.querySelector('#dining .other-methods'),null);
+ assert.equal(window.document.querySelectorAll('#dining table').length,1);
  assert.equal(value('citi','online'),'4');assert.equal(value('citi','wallet'),'0.4');
  assert.match($('sheet-results').textContent,/2.1% FX spread/);
  $('sheet-currency').value='sgd';event('sheet-currency','change');assert.equal(window.location.search,'');
@@ -32,7 +30,6 @@ test('public detailed sheet navigates categories, recalculates scenarios and nev
  $('sheet-currency').value='foreign';event('sheet-currency','change');assert.equal(window.location.search,'?currency=foreign');
  assert.equal(window.document.querySelectorAll('.primary-comparison [data-card=amaze]').length,1);
  $('sheet-amount').value='12.5';event('sheet-amount','input');
- assert.equal(window.document.querySelector('#dining .other-methods').open,true);
  assert.equal(value('uob','tap'),'24');assert.equal(value('citi','online'),'48');
  assert.equal(value('citi','wallet'),'4.8');
  $('sheet-citi').value='0';event('sheet-citi','input');assert.equal(value('citi','online'),'4.8');

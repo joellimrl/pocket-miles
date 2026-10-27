@@ -2,11 +2,11 @@ import {recommend} from './recommend.js';
 
 export const PAYMENT_NAMES={tap:'Contactless · phone or card',online:'Online / app',insert:'Insert card'};
 export const ROUTES={
- tap:{label:'Google / Apple Pay · tap',short:'Google / Apple Pay',hint:'Tap at terminal',method:'tap',onlineWallet:false,primary:true},
- online:{label:'Online · direct card',short:'Online',hint:'Direct card details',method:'online',onlineWallet:false,primary:true},
- wallet:{label:'Online · Google / Apple Pay',short:'Google / Apple Pay',hint:'Online checkout',method:'online',onlineWallet:true,primary:false},
- card:{label:'Physical card · tap',short:'Physical card',hint:'Tap at terminal',method:'tap',onlineWallet:false,primary:false},
- insert:{label:'Physical card · insert',short:'Insert card',hint:'Into terminal',method:'insert',onlineWallet:false,primary:false}
+ tap:{label:'Google / Apple Pay · tap',short:'Google / Apple Pay',hint:'Tap',method:'tap',onlineWallet:false},
+ wallet:{label:'Google / Apple Pay · online',short:'Google / Apple Pay',hint:'Online',method:'online',onlineWallet:true},
+ online:{label:'Online · direct card',short:'Online',hint:'Direct card',method:'online',onlineWallet:false},
+ card:{label:'Physical card · tap',short:'Physical card',hint:'Tap',method:'tap',onlineWallet:false},
+ insert:{label:'Physical card · insert',short:'Physical card',hint:'Insert',method:'insert',onlineWallet:false}
 };
 const onlineCategories=new Set(['rides','delivery','marketplace','otheronline','ota']);
 const onlineMerchants=/\b(shopee|lazada|taobao|amazon|grabfood|foodpanda|deliveroo|gojek|tada|agoda|airbnb|expedia|kaligo|traveloka|mcdelivery)\b|\b(booking|hotels|trip)\.com\b|\bmc delivery\b/i;

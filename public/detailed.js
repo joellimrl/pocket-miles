@@ -5,24 +5,20 @@ const esc=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>
 const num=n=>new Intl.NumberFormat('en-SG',{maximumFractionDigits:2}).format(n);
 const score=(o,quick)=>quick?o.displayRate:o.miles;
 
-function renderTable(sheet,comparisons,primary=false){
- const {category,quick,amount,currency}=sheet;
- const routes=new Set(comparisons.map(c=>c.route));
- const rows=sheet.rows.map(row=>({...row,cells:row.cells.filter(c=>routes.has(c.route))}));
- rows.sort((a,b)=>Math.max(...b.cells.map(c=>score(c.option,quick)??-1))-Math.max(...a.cells.map(c=>score(c.option,quick)??-1)));
+function renderTable(sheet){
+ const {category,quick,amount,currency,comparisons,rows}=sheet;
  const caption=quick?`Miles / S$ · ${currency==='sgd'?'SGD':'foreign currency'}`:`Estimated miles on S$${num(amount)}${currency==='foreign'?' equivalent':''}`;
  const body=rows.map(row=>`<tr data-card="${row.id}"><th scope="row"><span class="card-name card-${row.id}">${esc(row.name)}</span><span class="fee">${esc(row.feeLabel)}</span></th>${row.cells.map(({route,option:o,best})=>{
   const value=score(o,quick),top=best&&value>0;
   const status=value===null?'Not estimated':!o.eligible?(category.review?'Conservative':'Excluded'):o.cap===0?'Base rate':!quick&&o.bonus&&o.cap!==null&&o.cap!==undefined&&amount>o.cap?'Cap split':'';
   return `<td data-route="${route}" class="${top?'best':''}"><span class="value">${value===null?'—':num(value)}</span><span class="cell-status">${top?'★ Top miles':''}${top&&status?' · ':''}${status}</span></td>`;
  }).join('')}</tr>`).join('');
- return `<div class="table-wrap"><table${primary?' class="primary-comparison"':''}><caption>${esc(caption)} · fees extra</caption><thead><tr><th scope="col">Card</th>${comparisons.map(c=>`<th scope="col" data-route="${c.route}">${esc(c.short)}<small class="route-hint">${esc(c.hint)}</small></th>`).join('')}</tr></thead><tbody>${body}</tbody></table></div>`;
+ return `<div class="table-wrap" tabindex="0" role="region" aria-label="${esc(category.name)} card comparison"><table class="primary-comparison${comparisons.length===5?' all-methods':''}"><caption>${esc(caption)} · fees extra</caption><thead><tr><th scope="col">Card</th>${comparisons.map(c=>`<th scope="col" data-route="${c.route}">${esc(c.short)}<small class="route-hint">${esc(c.hint)}</small></th>`).join('')}</tr></thead><tbody>${body}</tbody></table></div>`;
 }
 
 function renderCategory(sheet){
  const {category,comparisons,rows}=sheet;
- const preferred=comparisons.filter(c=>c.primary),other=comparisons.filter(c=>!c.primary);
- const tables=renderTable(sheet,preferred.length?preferred:other,true)+(preferred.length&&other.length?`<details class="other-methods"><summary>Other payment methods</summary>${renderTable(sheet,other)}</details>`:'');
+ const tables=renderTable(sheet);
  const reasons=rows.map(row=>{
   const grouped=new Map();
   for(const {route,option} of row.cells){
@@ -49,9 +45,7 @@ export function mountDetailed(doc,location){
    const scenario={currency:$('sheet-currency').value,amount:$('sheet-amount').value,hsbcRemaining:$('sheet-hsbc').value,citiRemaining:$('sheet-citi').value,uobQualified:$('sheet-uob').checked};
    const categories=categorySelect.value==='all'?DETAIL_CATEGORIES:DETAIL_CATEGORIES.filter(c=>c.id===categorySelect.value);
    const sheets=categories.map(c=>detailedCategory(c.id,scenario));
-   const expanded=new Set([...$('sheet-results').querySelectorAll('.category-sheet')].filter(el=>el.querySelector('.other-methods')?.open).map(el=>el.id));
    $('sheet-results').innerHTML=sheets.map(renderCategory).join('');
-   for(const el of $('sheet-results').querySelectorAll('.category-sheet'))if(expanded.has(el.id)&&el.querySelector('.other-methods'))el.querySelector('.other-methods').open=true;
    $('sheet-results').hidden=false;$('sheet-error').hidden=true;$('sheet-error').textContent='';
    const hasAmaze=sheets.some(sheet=>sheet.rows.some(row=>row.id==='amaze'));
    $('sheet-status').textContent=`${sheets.length} spending ${sheets.length===1?'type':'types'} · all 4 cards${hasAmaze?' + Amaze for foreign currency':''} · ${scenario.amount===''?'headline rates before rounding':'amount includes modelled rounding and caps'}`;
