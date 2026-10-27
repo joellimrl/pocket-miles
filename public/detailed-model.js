@@ -1,15 +1,10 @@
 import {CATEGORIES} from './rules.js';
-import {CARDS, WALLET_DEFAULTS, recommend} from './recommend.js';
-import {paymentMethods} from './payments.js';
+import {CARDS, WALLET_DEFAULTS} from './recommend.js';
+import {comparePayments} from './payments.js';
+export {ROUTES} from './payments.js';
 
 const order=['dining','fastfood','groceries','pharmacy','bakery','electronics','books','fashion','marketplace','delivery','rides','mrt','sia','general'];
 export const DETAIL_CATEGORIES=[...order.map(id=>CATEGORIES.find(c=>c.id===id)),...CATEGORIES.filter(c=>!order.includes(c.id))];
-export const ROUTES={
- tap:{label:'Tap / phone',short:'Tap',method:'tap',onlineWallet:false},
- online:{label:'Online · direct card details',short:'Online',method:'online',onlineWallet:false},
- wallet:{label:'Online · Google / Apple Pay',short:'GPay / APay',method:'online',onlineWallet:true},
- insert:{label:'Insert card',short:'Insert',method:'insert',onlineWallet:false}
-};
 export const SHEET_DEFAULTS={currency:'sgd',amount:'',hsbcRemaining:1000,citiRemaining:1000,uobQualified:true};
 const numberIn=(value,min,max,label)=>{
  const n=Number(value);
@@ -30,9 +25,7 @@ export function detailedCategory(id,scenario={},now=new Date().toISOString()){
  const settings={...WALLET_DEFAULTS,cards:CARDS.map(c=>c.id),amaze:true,trustMiles:true,uobQualified:s.uobQualified,hsbcRemaining,citiRemaining,hsbcUpdated:now,citiUpdated:now};
  const currency=id==='mrt'?'sgd':s.currency;
  const merchant={name:category.name,category:id,method:category.method,currency,onlineWallet:false};
- const methods=paymentMethods(merchant);
- const routeIds=['tap','online','wallet','insert'].filter(route=>methods.includes(ROUTES[route].method));
- const comparisons=routeIds.map(route=>({route,...ROUTES[route],result:recommend({...merchant,...ROUTES[route],amount},settings,now)}));
+ const comparisons=comparePayments(merchant,amount,settings,now);
  const quick=amount==='';
  const value=o=>quick?o.displayRate:o.miles;
  const rows=comparisons[0].result.options.map(card=>{

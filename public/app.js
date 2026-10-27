@@ -77,40 +77,42 @@ function renderResult(){
  const context=`<div class="merchant-line"><div><h2>${esc(displayName(m))}</h2><small>${esc(categoryName(m.category))}${m.confidence!=='confirmed'?' · Unconfirmed':''}</small></div><div class="merchant-actions"><button class="quiet" data-edit-current>Edit</button>${m.id?'':'<button class="quiet" data-save-current>Save ＋</button>'}</div></div>`;
  if(r.status==='amount'){$('result').innerHTML=context+`<p class="warning">${esc(r.message)}</p>`;return;}
  const warningMethods=new Map();
- for(const {method,result} of comparisons)for(const warning of result.warnings){
+ for(const {label,result} of comparisons)for(const warning of result.warnings){
   if(!warningMethods.has(warning))warningMethods.set(warning,[]);
-  warningMethods.get(warning).push(methodName[method]);
+  warningMethods.get(warning).push(label);
  }
  const warnings=[...warningMethods].map(([warning,methods])=>`<p class="warning">${methods.length<comparisons.length?`<strong>${methods.join(' / ')}:</strong> `:''}${esc(warning)}</p>`).join('');
  const pairing=r.foreign&&owned.includes('citi')&&!settings().amaze?'<p class="fine">Amaze + Citi Rewards is not enabled. <button class="quiet" data-wallet>Wallet ↗</button></p>':'';
  const excluded=r.status==='excluded'?'<p class="comparison-alert">No miles for this category.</p>':'';
  const assumptions=m.confidence!=='confirmed'?'Category is unconfirmed. Check the merchant’s bank classification.':'Your saved category applies to every column; a different checkout may have a different bank classification.';
- $('result').innerHTML=context+excluded+renderComparison(comparisons)+`<details class="comparison-details"><summary>Fees & details</summary><p class="fine">${m.id?'Saved place':'One-off · not saved'}. ${assumptions} Checkout methods are suggestions, not live acceptance data.</p><p class="fine">Rows are ordered by each card’s highest miles across the shown methods. Highlighted cells are the top pick per method. Fees are extra; they only break ties. ${r.quick?'Remaining bonus allowance is assumed to cover your purchase. Add an amount to check caps and rounding.':'Total miles include modelled caps and rounding.'}</p>${pairing}${r.message?`<p class="warning">${esc(r.message)}</p>`:''}${m.notes?`<p class="personal-note">${esc(m.notes)}</p>`:''}${warnings}${comparisons.map(({method,result})=>renderPaymentDetails(method,result,m)).join('')}</details>`;
+ const preferred=comparisons.filter(c=>c.primary),other=comparisons.filter(c=>!c.primary);
+ const moreOpen=$('result').querySelector('.other-methods')?.open;
+ const tables=renderComparison(preferred.length?preferred:other,true)+(preferred.length&&other.length?`<details class="other-methods"${moreOpen?' open':''}><summary>Other payment methods</summary>${renderComparison(other)}</details>`:'');
+ $('result').innerHTML=context+excluded+tables+`<details class="comparison-details"><summary>Fees & details</summary><p class="fine">${m.id?'Saved place':'One-off · not saved'}. ${assumptions} Checkout methods are suggestions, not live acceptance data.</p><p class="fine">Phone tapping and direct online payments appear first. Physical card tap, insert and online Google / Apple Pay are under Other payment methods where applicable. Phone and physical-card taps use the same contactless rules. Each table orders cards by their highest miles across its methods. Fees are extra; they only break ties. ${r.quick?'Remaining bonus allowance is assumed to cover your purchase. Add the amount if it could use that allowance up.':'Total miles include modelled caps and rounding.'}</p>${pairing}${r.message?`<p class="warning">${esc(r.message)}</p>`:''}${m.notes?`<p class="personal-note">${esc(m.notes)}</p>`:''}${warnings}${comparisons.map(c=>renderPaymentDetails(c)).join('')}</details>`;
 }
-function renderComparison(comparisons){
+function renderComparison(comparisons,primary=false){
  const r=comparisons[0].result,score=o=>r.quick?o.displayRate:o.miles;
  const rows=r.options.map(o=>({card:o,options:comparisons.map(c=>c.result.options.find(p=>p.id===o.id))}));
  rows.sort((a,b)=>Math.max(...b.options.map(o=>score(o)??-1))-Math.max(...a.options.map(o=>score(o)??-1)));
- const labels={tap:'Tap / phone',online:'Online / app',insert:'Insert'};
  const body=rows.map(({card,options})=>{
   const fee=card.id==='amaze'?'≤2.1% FX':r.foreign?(card.id==='trust'?'No FX fee':'Bank FX fee'):'';
   const name=card.id==='amaze'?'Amaze + Citi':card.name;
   return `<tr data-card-id="${card.id}"><th scope="row"><span class="matrix-card-name"><i class="card-mark ${card.color}" aria-hidden="true"></i>${esc(name)}</span>${fee?`<small class="matrix-fee">${fee}</small>`:''}</th>${options.map((o,i)=>{
    const value=score(o),best=comparisons[i].result.best?.id===o.id&&value>0;
    const status=value===null?'Not estimated':!o.eligible?(o.id==='trust'&&r.status!=='excluded'?'Mode off':'Excluded'):o.cap===0?'Base':o.unknownCap?'Cap?':'';
-   return `<td data-method="${comparisons[i].method}" class="${best?'best-cell':''}"><strong class="matrix-miles">${value===null?'—':num(value)}</strong>${best||status?`<small class="matrix-status">${best?'★ Best':''}${best&&status?' · ':''}${status}</small>`:''}</td>`;
+   return `<td data-method="${comparisons[i].route}" class="${best?'best-cell':''}"><strong class="matrix-miles">${value===null?'—':num(value)}</strong>${best||status?`<small class="matrix-status">${best?'★ Best':''}${best&&status?' · ':''}${status}</small>`:''}</td>`;
   }).join('')}</tr>`;
  }).join('');
- return `<div class="matrix-wrap"><table class="card-matrix"><caption>${r.quick?'Miles / S$':'Estimated miles'} · fees extra</caption><thead><tr><th scope="col">Your cards</th>${comparisons.map(({method})=>`<th scope="col" data-payment-method="${method}">${labels[method]}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table></div>`;
+ return `<div class="matrix-wrap"><table class="card-matrix${primary?' primary-comparison':''}"><caption>${r.quick?'Miles / S$':'Estimated miles'} · fees extra</caption><thead><tr><th scope="col">Your cards</th>${comparisons.map(c=>`<th scope="col" data-payment-method="${c.route}">${esc(c.short)}<small class="route-hint">${esc(c.hint)}</small></th>`).join('')}</tr></thead><tbody>${body}</tbody></table></div>`;
 }
-function renderPaymentDetails(method,r,m){
- const pairedRoute={tap:'Tap your Amaze card, linked to Citi Rewards Mastercard.',insert:'Insert your Amaze card, linked to Citi Rewards Mastercard.',online:'Use your Amaze card details online, linked to Citi Rewards Mastercard.'};
- const checkout=method==='online'?(m.onlineWallet?'Apple Pay / Google Pay at online checkout selected.':'Direct cards assume you use their card details online. Using Apple Pay / Google Pay at checkout? Set this in Payment details.'):'';
+function renderPaymentDetails({route,method,onlineWallet,label,result:r}){
+ const pairedRoute={tap:'Select Amaze in Google / Apple Pay and tap, with Citi Rewards Mastercard linked in Amaze.',card:'Tap your physical Amaze card, linked to Citi Rewards Mastercard.',insert:'Insert your Amaze card, linked to Citi Rewards Mastercard.',online:'Use your Amaze card details online, linked to Citi Rewards Mastercard.',wallet:'Select Amaze in Google / Apple Pay at online checkout, with Citi Rewards Mastercard linked in Amaze.'};
+ const checkout=method==='online'?(onlineWallet?'Google / Apple Pay button at online checkout.':'Card details entered or saved directly in the website or app.'):'';
  const cards=r.options.map(o=>{
   const spread=o.id==='amaze'&&o.eligible&&r.foreign&&!r.quick?`<p class="checkout-note">Spread illustration at 2.1%: S$${(r.amount*.021).toFixed(2)}. Actual FX cost depends on the conversion rate.</p>`:'';
-  return `<li><strong>${esc(o.name)}</strong><p>${esc(o.feeLabel)}. ${esc(o.reason)} ${esc(o.rounding)}</p>${o.id==='amaze'&&o.eligible?`<p>${pairedRoute[method]} Shares Citi’s bonus allowance.</p>`:''}${spread}</li>`;
+  return `<li><strong>${esc(o.name)}</strong><p>${esc(o.feeLabel)}. ${esc(o.reason)} ${esc(o.rounding)}</p>${o.id==='amaze'&&o.eligible?`<p>${pairedRoute[route]} Shares Citi’s bonus allowance.</p>`:''}${spread}</li>`;
  }).join('');
- return `<section class="method-details"><h3>${methodName[method]}</h3>${checkout?`<p>${esc(checkout)}</p>`:''}<ul>${cards}</ul></section>`;
+ return `<section class="method-details"><h3>${esc(label)}</h3>${checkout?`<p>${esc(checkout)}</p>`:''}<ul>${cards}</ul></section>`;
 }
 function renderLists(){
  const all=[...store.data.merchants].sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)),q=normalize($('places-search').value);
