@@ -8,6 +8,8 @@ A private-profile Singapore credit-card companion with its own repository and Gi
 - App address: https://joellimrl.github.io/pocket-miles/
 - Backend review: https://github.com/joellimrl/streetBot/pull/1
 - [Full backend explanation](docs/backend.md)
+- [Set up on another computer](docs/new-device-setup.md)
+- [Agent handoff and architecture](docs/agent-handoff.md)
 
 The browser app is independent of ChatGPT and the portfolio repository. Its private data service remains inside the existing Streetbot/Fly backend and MongoDB. Public source code contains no device credentials, saved card selection or merchant records.
 
